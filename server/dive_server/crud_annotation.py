@@ -1,5 +1,5 @@
 from typing import Callable, Generator, Iterable, List, Optional, Tuple
-
+from collections import Counter
 from girder.constants import AccessType
 from girder.models.folder import Folder
 from pydantic import Field
@@ -288,6 +288,18 @@ def save_annotations(
         deletions = expire_result.get('nModified', 0)
         return additions, deletions
 
+    def update_dataset(dsFolder):
+        track_items = TrackItem().find(
+            query={DATASET: dsFolder["_id"], REVISION_DELETED: {'$exists': False}},
+            fields={"_id": 0, "confidencePairs": 1}
+        )
+        annotations = [item["confidencePairs"] for item in track_items]
+        species = [pair[0] for pairs in annotations for pair in pairs]
+        crud_dataset.update_metadata(dsFolder, {"annotations": {
+            "number": len(annotations),
+            "species": dict(Counter(species))
+        }})
+
     track_additions, track_deletions = update_collection(
         TrackItem(), upsert_tracks, delete_tracks, set
     )
@@ -310,6 +322,8 @@ def save_annotations(
             set=set,
         )
         RevisionLogItem().create(log_entry)
+
+    update_dataset(dsFolder)
 
     if dsFolder.get(constants.SharableMediaId, None) is not None:
         sharable_folder = Folder().findOne({"_id": dsFolder.get(constants.SharableMediaId)})

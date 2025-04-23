@@ -547,6 +547,7 @@ def postprocess(
     isClone = dsFolder.get(constants.ForeignMediaIdMarker, None) is not None
     # add default confidence filter threshold to folder metadata
     dsFolder['meta'][constants.ConfidenceFiltersMarker] = {'default': 0.1}
+    dsFolder['meta'][constants.AnnotationMarker] = {'number': 0, 'species': {}}
 
     # Validate user-supplied metadata fields are present
     if fromMeta(dsFolder, constants.FPSMarker) is None:

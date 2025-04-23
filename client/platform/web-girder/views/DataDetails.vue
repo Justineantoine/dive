@@ -62,6 +62,17 @@ export const DefaultInfoKeys = [
   },
   {
     meta: true,
+    value: 'annotations.number',
+    name: 'Annotations: ',
+  },
+  {
+    meta: true,
+    value: 'annotations.species',
+    name: 'Species: ',
+    transform: (val) => Object.entries(val).map(([key, value]) => `${key}: ${value}`).join(', '),
+  },
+  {
+    meta: true,
     value: 'type',
     name: 'Type: ',
   },
@@ -92,6 +103,12 @@ export default Vue.extend({
     return {
       showUpsert: false,
     };
+  },
+  methods: {
+    getVal(infoKey) {
+      const base = infoKey.meta ? this.details.meta : this.details;
+      return infoKey.value.split('.').reduce((acc, key) => acc?.[key], base);
+    },
   },
   asyncComputed: {
     async details() {
@@ -132,9 +149,7 @@ export default Vue.extend({
         /* If this is a single datum */
         return this.infoKeys
           .map((k) => {
-            let val = k.meta
-              ? this.details.meta?.[k.value]
-              : this.details[k.value];
+            let val = this.getVal(k);
             if (!val) {
               return null;
             }

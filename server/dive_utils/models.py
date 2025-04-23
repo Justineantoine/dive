@@ -239,6 +239,7 @@ class MetadataMutable(BaseModel):
     sharable: Optional[bool]
     OriginalMediaName: Optional[str]
     sharableMediaId: Optional[PydanticObjectId]
+    annotations: Optional[Dict]
 
     @staticmethod
     def is_dive_configuration(value: dict):

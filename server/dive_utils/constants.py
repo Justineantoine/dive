@@ -116,6 +116,7 @@ SharableMarker = "sharable"
 OriginalMediaName = "originalMediaName"
 SharableMediaId = "sharableMediaId"
 OriginalMediaId = "originalMediaId"
+AnnotationMarker = "annotations"
 
 # Other constants
 TrainedPipelineCategory = "trained"

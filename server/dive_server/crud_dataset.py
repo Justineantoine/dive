@@ -47,6 +47,8 @@ def createSoftClone(
     # ensure confidence filter metadata exists
     if constants.ConfidenceFiltersMarker not in cloned_folder['meta']:
         cloned_folder['meta'][constants.ConfidenceFiltersMarker] = {'default': 0.1}
+    if constants.AnnotationMarker not in cloned_folder['meta']:
+        cloned_folder['meta'][constants.AnnotationMarker] = {'number': 0, 'species': {}}
     Folder().save(cloned_folder)
     crud.get_or_create_auxiliary_folder(cloned_folder, owner)
     crud_annotation.clone_annotations(source_folder, cloned_folder, owner, revision)
@@ -266,7 +268,6 @@ def update_attribute_track_filters(dsFolder: types.GirderModel, data: dict):
 
     if upserted_len or deleted_len:
         update_metadata(dsFolder, {'attributeTrackFilters': attributesfilters_dict})
-
 
 def export_datasets_zipstream(
     dsFolders: List[types.GirderModel],
