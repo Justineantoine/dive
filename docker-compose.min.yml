@@ -1,0 +1,110 @@
+## Use this to start the girder/ girder-worker ecosystem
+
+# Use YAML anchors for the common config between both workers
+x-worker: &base-worker
+  deploy:
+    resources:
+      reservations:
+        devices:
+          - capabilities: [gpu]
+  ipc: host
+  build:
+    context: .
+    dockerfile: docker/girder_worker.Dockerfile
+  image: kitware/viame-worker:${TAG:-latest}
+  volumes:
+    - addons:/tmp/addons:ro # readonly
+  labels:
+    - "com.centurylinklabs.watchtower.enable=true"
+  depends_on:
+    girder:
+      condition: service_started
+    rabbit:
+      condition: service_started
+
+version: "3.8"
+services:
+
+  traefik:
+    image: traefik:v2.4
+    container_name: traefik
+    command: >
+      --providers.docker=true
+      --providers.docker.exposedByDefault=false
+      --entrypoints.web.address=:80
+    volumes:
+      - "${SOCK_PATH:-/var/run/docker.sock}:/var/run/docker.sock"
+    ports:
+      - "8010:80"
+
+  mongo:
+    image: mongo:5.0
+    volumes:
+      # Use env config path, default to docker volume
+      - ${MONGO_DB_PATH:-mongo_db}:/data/db
+
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/client.Dockerfile
+    image: kitware/viame-client
+    init: true
+    command: ["tail", "-f", "/dev/null"]
+    volumes:
+      - type: bind
+        source: ./client
+        target: /app/
+      - /app/node_modules
+    ports:
+      - "8080:8080"
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+
+  girder:
+    build:
+      context: .
+      dockerfile: docker/girder.Dockerfile
+    image: kitware/viame-web:${TAG:-latest}
+    init: true
+    command: ["tail", "-f", "/dev/null"]
+    depends_on:
+      - mongo
+      - traefik
+    volumes:
+      - girder_assetstore:/home/assetstore
+      - type: bind
+        source: server/
+        target: /opt/dive/src/
+      - type: bind
+        source: ./client/dist
+        target: /opt/dive/local/venv/share/girder/static/viame/
+      - type: bind
+        source: ${PUBLIC_DATA_PATH:-./docker/girder_data}
+        target: /data/public
+        read_only: true
+    environment:
+      - "GIRDER_MONGO_URI=mongodb://mongo:27017/girder"
+      - "GIRDER_ADMIN_USER=${GIRDER_ADMIN_USER:-admin}"
+      - "GIRDER_ADMIN_PASS=${GIRDER_ADMIN_PASS:-letmein}"
+      - "CELERY_BROKER_URL=${CELERY_BROKER_URL:-amqp://guest:guest@rabbit/default}"
+      - "WORKER_API_URL=${WORKER_API_URL:-http://girder:8080/api/v1}"
+      # Rabbitmq management variables
+      - "RABBITMQ_MANAGEMENT_USERNAME=${RABBITMQ_MANAGEMENT_USERNAME:-guest}"
+      - "RABBITMQ_MANAGEMENT_PASSWORD=${RABBITMQ_MANAGEMENT_PASSWORD:-guest}"
+      - "RABBITMQ_MANAGEMENT_VHOST=${RABBITMQ_MANAGEMENT_VHOST:-default}"
+      - "RABBITMQ_MANAGEMENT_URL=${RABBITMQ_MANAGEMENT_URL:-http://rabbit:15672/}"
+      - "RABBITMQ_MANAGEMENT_BROKER_URL_TEMPLATE=${RABBITMQ_MANAGEMENT_BROKER_URL_TEMPLATE}"
+    labels:
+      # REMOVING WEEKLY UPDATE
+      # - "com.centurylinklabs.watchtower.enable=true"
+      - "traefik.enable=true"
+      - "traefik.http.services.girder-svc.loadbalancer.server.port=8080"
+      - "traefik.http.routers.girder-rtr.entrypoints=web"
+      - "traefik.http.routers.girder-rtr.rule=HostRegexp(`{catchall:.*}`)"
+
+  # Worker for misc non gpu-bound tasks
+
+volumes:
+  addons:
+  mongo_db:
+  girder_assetstore:
