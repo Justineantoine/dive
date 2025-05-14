@@ -31,6 +31,10 @@ export default defineComponent({
       type: Object,
       default: () => ({}),
     },
+    readOnlyMode: {
+      type: Boolean,
+      default: false,
+    },
   },
 
   setup(props) {
@@ -108,27 +112,37 @@ export default defineComponent({
         v-on="on"
       >
         <template #activator="{ on: ton, attrs: tattrs }">
-          <v-btn
-            v-bind="{ ...tattrs, ...buttonOptions }"
-            :disabled="datasetId === null"
-            v-on="{ ...ton, click }"
-          >
-            <v-icon>
-              mdi-content-copy
-            </v-icon>
-            <span
-              v-show="!$vuetify.breakpoint.mdAndDown || buttonOptions.block"
-              class="pl-1"
+          <div v-on="ton">
+            <v-btn
+              v-bind="{ ...tattrs, ...buttonOptions }"
+              :disabled="datasetId === null || readOnlyMode"
+              v-on="{ click }"
             >
-              Clone
-            </span>
-            <v-spacer />
-            <v-icon v-if="menuOptions.right">
-              mdi-dock-window
-            </v-icon>
-          </v-btn>
+              <v-icon>
+                mdi-content-copy
+              </v-icon>
+              <span
+                v-show="!$vuetify.breakpoint.mdAndDown || buttonOptions.block"
+                class="pl-1"
+              >
+                Clone
+              </span>
+              <v-spacer />
+              <v-icon v-if="menuOptions.right">
+                mdi-dock-window
+              </v-icon>
+            </v-btn>
+          </div>
         </template>
-        <span>Create a clone of this data</span>
+        <span
+          v-if="readOnlyMode"
+        >
+          Read only mode, cannot clone this dataset.
+        </span><span
+          v-else
+        >
+          Create a clone of this data.
+        </span>
       </v-tooltip>
     </template>
 

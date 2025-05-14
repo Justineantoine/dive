@@ -76,6 +76,13 @@ const router = new Router({
       beforeEnter,
     },
     {
+      path: '/previewer/:id',
+      name: 'previewer',
+      component: ViewerLoader,
+      props: (route) => ({ ...route.params, previewMode: true }),
+      beforeEnter,
+    },
+    {
       path: '/',
       component: RouterPage,
       children: [

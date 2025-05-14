@@ -140,6 +140,16 @@ export default defineComponent({
       >
         Launch Annotator
       </v-btn>
+      <v-btn
+        v-if="isAnnotationFolder(item)"
+        class="ml-2"
+        x-small
+        color="primary"
+        depressed
+        :to="{ name: 'previewer', params: { id: item._id } }"
+      >
+        Preview Data
+      </v-btn>
       <v-chip
         v-if="(item.foreign_media_id)"
         color="white"

@@ -40,6 +40,10 @@ export default defineComponent({
       type: Object,
       default: () => ({}),
     },
+    readOnlyMode: {
+      type: Boolean,
+      default: false,
+    },
   },
 
   setup(props) {
@@ -250,30 +254,36 @@ export default defineComponent({
     <template #activator="{ on: menuOn }">
       <v-tooltip bottom>
         <template #activator="{ on: tooltipOn }">
-          <v-btn
-            class="ma-0"
-            v-bind="buttonOptions"
-            :disabled="!isDownloadButtonDisplayed"
-            v-on="{ ...tooltipOn, ...menuOn }"
-
-            @click="prepareExport()"
-          >
-            <v-icon>
-              mdi-download
-            </v-icon>
-            <span
-              v-show="!$vuetify.breakpoint.mdAndDown || buttonOptions.block"
-              class="pl-1"
+          <div v-on="tooltipOn">
+            <v-btn
+              class="ma-0"
+              v-bind="buttonOptions"
+              :disabled="!isDownloadButtonDisplayed || readOnlyMode"
+              v-on="{ ...tooltipOn, ...menuOn }"
+              @click="prepareExport()"
             >
-              Download
-            </span>
-            <v-spacer />
-            <v-icon v-if="menuOptions.right && isDatasetDownload">
-              mdi-chevron-right
-            </v-icon>
-          </v-btn>
+              <v-icon>
+                mdi-download
+              </v-icon>
+              <span
+                v-show="!$vuetify.breakpoint.mdAndDown || buttonOptions.block"
+                class="pl-1"
+              >
+                Download
+              </span>
+              <v-spacer />
+              <v-icon v-if="menuOptions.right && isDatasetDownload">
+                mdi-chevron-right
+              </v-icon>
+            </v-btn>
+          </div>
         </template>
-        <span v-if="isDatasetDownload">Download media and annotations</span>
+        <span v-if="readOnlyMode">
+          Read only mode, cannot download files for this dataset.
+        </span>
+        <span v-else-if="isDatasetDownload">
+          Download media and annotations.
+        </span>
         <span v-else-if="isFilesDownload">Download selected files</span>
       </v-tooltip>
     </template>

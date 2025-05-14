@@ -197,26 +197,29 @@ export default defineComponent({
           :disabled="menuOptions.offsetX"
         >
           <template #activator="{ on: tooltipOn }">
-            <v-btn
-              v-bind="buttonOptions"
-              :disabled="pipelinesNotRunnable || buttonOptions.disabled"
-              :color="pipelinesCurrentlyRunning ? 'warning' : buttonOptions.color"
-              v-on="{ ...tooltipOn, ...menuOn }"
-            >
-              <v-icon> mdi-pipe </v-icon>
-              <span
-                v-show="!$vuetify.breakpoint.mdAndDown || buttonOptions.block"
-                class="pl-1"
+            <div v-on="tooltipOn">
+              <v-btn
+                v-bind="buttonOptions"
+                :disabled="pipelinesNotRunnable || buttonOptions.disabled || readOnlyMode"
+                :color="pipelinesCurrentlyRunning ? 'warning' : buttonOptions.color"
+                v-on="{ ...tooltipOn, ...menuOn }"
               >
-                Run pipeline
-              </span>
-              <v-spacer />
-              <v-icon v-if="menuOptions.right">
-                mdi-chevron-right
-              </v-icon>
-            </v-btn>
+                <v-icon> mdi-pipe </v-icon>
+                <span
+                  v-show="!$vuetify.breakpoint.mdAndDown || buttonOptions.block"
+                  class="pl-1"
+                >
+                  Run pipeline
+                </span>
+                <v-spacer />
+                <v-icon v-if="menuOptions.right">
+                  mdi-chevron-right
+                </v-icon>
+              </v-btn>
+            </div>
           </template>
-          <span v-if="!pipelinesCurrentlyRunning">Run CV algorithm pipelines on this data</span>
+          <span v-if="readOnlyMode">Read only mode, cannot run pipelines on this data</span>
+          <span v-else-if="!pipelinesCurrentlyRunning">Run CV algorithm pipelines on this data</span>
           <span v-else>Pipeline is Currently running </span>
         </v-tooltip>
       </template>
@@ -254,12 +257,6 @@ export default defineComponent({
               View Running Job
             </v-btn>
           </v-row>
-        </v-card>
-        <v-card v-else-if="readOnlyMode">
-          <v-card-title> Read only Mode</v-card-title>
-          <v-card-text>
-            This Dataset is in ReadOnly Mode.  You cannot run pipelines on this dataset.
-          </v-card-text>
         </v-card>
         <v-card v-else-if="includesLargeImage">
           <v-card-title> Large Image</v-card-title>

@@ -54,6 +54,7 @@ import PrimaryAttributeTrackFilter from './PrimaryAttributeTrackFilter.vue';
 export interface ImageDataItem {
   url: string;
   filename: string;
+  show: boolean;
 }
 
 export default defineComponent({
@@ -85,6 +86,10 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    previewMode: {
+      type: Boolean,
+      default: false,
+    },
     currentSet: {
       type: String,
       default: '',
@@ -102,7 +107,7 @@ export default defineComponent({
     const multiCamList: Ref<string[]> = ref(['singleCam']);
     const defaultCamera = ref('singleCam');
     const playbackComponent = ref(undefined as Vue | undefined);
-    const readonlyState = computed(() => props.readOnlyMode
+    const readonlyState = computed(() => props.readOnlyMode || props.previewMode
     || props.revision !== undefined || !!(props.comparisonSets && props.comparisonSets.length));
     const sets: Ref<string[]> = ref([]);
     const displayComparisons = ref(props.comparisonSets.length
@@ -1133,6 +1138,7 @@ export default defineComponent({
                   intercept,
                   getTiles,
                   getTileURL,
+                  previewMode,
                 }"
                 @large-image-warning="$emit('large-image-warning', true)"
               >
@@ -1144,7 +1150,7 @@ export default defineComponent({
             ref="controlsRef"
             :collapsed.sync="controlsCollapsed"
             v-bind="{
-              lineChartData, eventChartData, groupChartData, datasetType,
+              lineChartData, eventChartData, groupChartData, datasetType, previewMode,
             }"
             @select-track="handler.trackSelect"
           />
