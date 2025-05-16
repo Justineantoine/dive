@@ -150,22 +150,26 @@ def get_media(
             else:
                 sourceVideoResource = videoResource
     elif source_type == constants.ImageSequenceType:
+        preview_frames = fromMeta(dsFolder, constants.PreviewFrames)
         imageData = [
             models.MediaResource(
-                id=str(image["_id"]),
-                url=get_url(dsFolder, image),
+                id=str(image["_id"]) if preview_frames is None or index in preview_frames else '',
+                url=get_url(dsFolder, image) if preview_frames is None or index in preview_frames else '',
                 filename=image['name'],
             )
-            for image in crud.valid_images(dsFolder, user)
+            for index, image in enumerate(crud.valid_images(dsFolder, user))
         ]
+
     elif source_type == constants.LargeImageType:
+        preview_frames = fromMeta(dsFolder, constants.PreviewFrames)
         imageData = [
             models.MediaResource(
-                id=str(image["_id"]),
-                url=get_large_image_metadata_url(image, modelType='item'),
+                id=str(image["_id"]) if preview_frames is None or index in preview_frames else '',
+                url=(get_large_image_metadata_url(image, modelType='item')
+                     if preview_frames is None or index in preview_frames else ''),
                 filename=image['name'],
             )
-            for image in crud.valid_large_images(dsFolder, user)
+            for index, image in enumerate(crud.valid_large_images(dsFolder, user))
         ]
 
     else:

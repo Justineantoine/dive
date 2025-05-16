@@ -54,7 +54,6 @@ import PrimaryAttributeTrackFilter from './PrimaryAttributeTrackFilter.vue';
 export interface ImageDataItem {
   url: string;
   filename: string;
-  show: boolean;
 }
 
 export default defineComponent({

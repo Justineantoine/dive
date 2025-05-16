@@ -111,6 +111,7 @@ FPSMarker = "fps"
 OriginalFPSMarker = "originalFps"
 OriginalFPSStringMarker = "originalFpsString"
 ConfidenceFiltersMarker = "confidenceFilters"
+PreviewFrames = "previewFrames"
 
 # Other constants
 TrainedPipelineCategory = "trained"

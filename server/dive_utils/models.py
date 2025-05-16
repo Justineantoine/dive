@@ -235,6 +235,7 @@ class MetadataMutable(BaseModel):
     attributes: Optional[Dict[str, Attribute]]
     attributeTrackFilters: Optional[Dict[str, AttributeTrackFilter]]
     fps: Optional[float]
+    previewFrames: Optional[List[int]]
 
     @staticmethod
     def is_dive_configuration(value: dict):
