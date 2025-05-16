@@ -26,11 +26,17 @@ export default defineComponent({
       start() { data.dragging = true; },
       end() { data.dragging = false; },
     };
-    function input(value: number) {
-      if (mediaController.frame.value !== value) {
+    function change(value: number) {
+      const oldVal = mediaController.frame.value;
+      if (oldVal !== value) {
         mediaController.seek(value);
+        if (oldVal === mediaController.frame.value) {
+          data.frame = -1;
+          requestAnimationFrame(() => {
+            data.frame = mediaController.frame.value;
+          });
+        }
       }
-      data.frame = value;
     }
     function togglePlay(_: HTMLElement, keyEvent: KeyboardEvent) {
       // Prevent scroll from spacebar and other default effects.
@@ -56,7 +62,7 @@ export default defineComponent({
       data,
       mediaController,
       dragHandler,
-      input,
+      change,
       togglePlay,
       toggleEnhancements,
       visible,
@@ -94,7 +100,7 @@ export default defineComponent({
         :value="data.frame"
         @start="dragHandler.start"
         @end="dragHandler.end"
-        @input="input"
+        @change="change"
       />
       <v-row no-gutters>
         <v-col class="pl-1 py-1 shrink">

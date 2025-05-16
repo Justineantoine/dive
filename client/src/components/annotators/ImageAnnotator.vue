@@ -219,20 +219,38 @@ export default defineComponent({
         cacheNewRange(min, max);
       }
     }
+    function findNextFrame(f: number, lastFrame: number) {
+      /**
+       * Find nearest frame that is not the previously selected one if possible
+       */
+      const minFrame = f < lastFrame ? 0 : lastFrame + 1;
+      const maxFrame = f < lastFrame ? lastFrame - 1 : data.maxFrame;
+      for (let offset = 0; offset <= Math.max(maxFrame - f, f - minFrame); offset += 1) {
+        const backward = f - offset;
+        const forward = f + offset;
+        if (backward >= minFrame && !!props.imageData[backward].url) {
+          return backward;
+        }
+        if (forward <= maxFrame && !!props.imageData[forward].url) {
+          return forward;
+        }
+      }
+      return lastFrame;
+    }
     async function seek(f: number) {
       if (!data.ready) {
         return;
       }
-      let newFrame = f;
-      if (f < 0) newFrame = 0;
-      if (f > data.maxFrame) newFrame = data.maxFrame;
+      const newFrame = findNextFrame(f, local.lastFrame === -1 ? -1 : data.frame);
+      if (data.frame !== 0 && newFrame === data.frame) {
+        // if the frame does not change then nothing is done
+        pause();
+        return;
+      }
       local.lastFrame = data.frame;
       data.frame = newFrame;
       data.syncedFrame = newFrame;
       data.filename = props.imageData[data.frame].filename;
-      if (data.frame !== 0 && local.lastFrame === data.frame) {
-        return;
-      }
       props.updateTime(data);
       cacheImages();
       const imgInternal = expectFrame(newFrame);
@@ -282,7 +300,7 @@ export default defineComponent({
         // The correct behavior of this function implicitly requires that seek()
         // always trigger caching for surrounding frames.
         const nextImage = expectFrame(nextFrame);
-        if (!nextImage.cached) {
+        if (!nextImage.cached && !!props.imageData[nextFrame].url) {
           // Prevents advancing the frame while playing if the current image is not loaded
           loadingVideo.value = true;
           await Promise.all(checkCached(nextFrame, local.playCache));
