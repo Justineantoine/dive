@@ -135,6 +135,18 @@ function saveMetadata(folderId: string, metadata: DatasetMetaMutable) {
   return girderRest.patch(`/dive_dataset/${folderId}`, metadata);
 }
 
+function requestAccess(folderId: string) {
+  return girderRest.put(`/dive_dataset/${folderId}/request-access`);
+}
+
+function grantAccess(folderId: string, userId: string) {
+  return girderRest.put(`/dive_dataset/${folderId}/access`, userId);
+}
+
+function shareData(folderId: string, share: boolean) {
+  return girderRest.post(`/dive_dataset/${folderId}/share`, null, { params: { share } });
+}
+
 interface ValidationResponse {
   ok: boolean;
   type: 'video' | 'image-sequence';
@@ -152,10 +164,13 @@ export {
   getDataset,
   getDatasetList,
   getDatasetMedia,
+  grantAccess,
   importAnnotationFile,
   makeViameFolder,
+  requestAccess,
   saveAttributes,
   saveAttributeTrackFilters,
   saveMetadata,
+  shareData,
   validateUploadGroup,
 };

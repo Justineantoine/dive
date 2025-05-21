@@ -112,6 +112,7 @@ OriginalFPSMarker = "originalFps"
 OriginalFPSStringMarker = "originalFpsString"
 ConfidenceFiltersMarker = "confidenceFilters"
 PreviewFrames = "previewFrames"
+SharedMediaIdMarker = "sharedMediaId"
 
 # Other constants
 TrainedPipelineCategory = "trained"

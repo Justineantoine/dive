@@ -5,6 +5,8 @@ from girder import events, plugin
 from girder.constants import AccessType
 from girder.models.setting import Setting
 from girder.models.user import User
+from girder.models.folder import Folder
+from girder.models.collection import Collection
 from girder.plugin import getPlugin
 from girder.utility import mail_utils
 from girder.utility.model_importer import ModelImporter
@@ -24,6 +26,36 @@ from .views_rpc import RpcResource
 
 class GirderPlugin(plugin.GirderPlugin):
     def load(self, info):
+        
+        def setRequestAccess(self, doc, user, level, save=False, flags=None, currentUser=None,
+                      force=False):
+            """
+            Set user-level access on the resource.
+
+            :param doc: The resource document to set access on.
+            :type doc: dict
+            :param user: The user to grant or remove access to.
+            :type user: dict
+            :param level: What level of access the user should have. Set to None
+                to remove all access for this user.
+            :type level: AccessType or None
+            :param save: Whether to save the object to the database afterward.
+                Set this to False if you want to wait to save the document for performance reasons.
+            :type save: bool
+            :param flags: List of access flags to grant to the group.
+            :type flags: specific flag identifier, or a list/tuple/set of them
+            :param currentUser: The user performing this action. Only required if attempting
+                to set admin-only flags on the resource.
+            :param force: Set this to True to set the flags regardless of the passed in
+                currentUser's permissions (only matters if flags are passed).
+            :type force: bool
+            :returns: The modified resource document.
+            """
+            return self._setAccess(doc, user['_id'], 'requests', level, save, flags, currentUser, force)
+        Folder.setRequestAccess = setRequestAccess
+
+        Collection().createCollection(name='Shared Data', description='Collection containing shared datasets', reuseExisting=True)
+        
         ModelImporter.registerModel('trackItem', TrackItem, plugin='dive_server')
         ModelImporter.registerModel('groupItem', GroupItem, plugin='dive_server')
         ModelImporter.registerModel('revisionLogItem', RevisionLogItem, plugin='dive_server')

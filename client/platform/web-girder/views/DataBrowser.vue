@@ -5,9 +5,11 @@ import {
 import {
   getLocationType, GirderModel,
 } from '@girder/components/src';
+import { useApi } from 'dive-common/apispec';
 import { itemsPerPageOptions } from 'dive-common/constants';
 import { clientSettings } from 'dive-common/store/settings';
-import { useStore, LocationType } from '../store/types';
+import { useGirderRest } from 'platform/web-girder/plugins/girder';
+import { useStore, LocationType, isGirderModel } from '../store/types';
 import Upload from './Upload.vue';
 import eventBus from '../eventBus';
 
@@ -18,14 +20,15 @@ export default defineComponent({
     DiveGirderBrowser,
     Upload,
   },
-
   setup() {
+    const girderRest = useGirderRest();
     const fileManager = ref();
     const store = useStore();
     const uploading = ref(false);
     const uploaderDialog = ref(false);
     const locationStore = store.state.Location;
     const { getters } = store;
+    const { shareData } = useApi();
 
     function setLocation(location: LocationType) {
       store.dispatch('Location/setRouteFromLocation', location);
@@ -47,11 +50,48 @@ export default defineComponent({
       return item._modelType === 'folder' && item.meta.annotate;
     }
 
+    function isUserOwner(item: GirderModel) {
+      return item.creatorId === girderRest.user._id;
+    }
+
+    function isRequestableFolder(item: GirderModel) {
+      return isAnnotationFolder(item) && !isUserOwner(item);
+    }
+
+    function isSharableFolder(item: GirderModel) {
+      return isAnnotationFolder(item) && isUserOwner(item);
+    }
+
+    function toggleShare(item: GirderModel) {
+      const isShared = !!item.meta.sharedMediaId;
+      shareData(item._id, !isShared).then(() => {
+        eventBus.$emit('refresh-data-browser');
+        //fileManager.value.$refs.girderBrowser.refresh();
+      });
+    }
+
     const shouldShowUpload = computed(() => (
       locationStore.location
       && !getters['Location/locationIsViameFolder']
       && getLocationType(locationStore.location) === 'folder'
       && !locationStore.selected.length
+      && isGirderModel(locationStore.location)
+      && isUserOwner(locationStore.location)
+    ));
+
+    const shouldShowNewFolder = computed(() => (
+      locationStore.location
+      && !getters['Location/locationIsViameFolder']
+      && !locationStore.selected.length
+      && isGirderModel(locationStore.location)
+      && isUserOwner(locationStore.location)
+    ));
+
+    const sharedBrowser = computed(() => (
+      locationStore.location
+      && getLocationType(locationStore.location) === 'collection'
+      && isGirderModel(locationStore.location)
+      && locationStore.location.name === 'Shared Data'
     ));
 
     eventBus.$on('refresh-data-browser', handleNotification);
@@ -63,13 +103,19 @@ export default defineComponent({
       fileManager,
       locationStore,
       getters,
+      toggleShare,
       shouldShowUpload,
+      shouldShowNewFolder,
+      sharedBrowser,
       uploaderDialog,
       uploading,
       clientSettings,
       itemsPerPageOptions,
       /* methods */
       isAnnotationFolder,
+      isUserOwner,
+      isRequestableFolder,
+      isSharableFolder,
       handleNotification,
       setLocation,
       updateUploading,
@@ -80,12 +126,43 @@ export default defineComponent({
 
 <template>
   <DiveGirderBrowser
+    ref="sharedFileManager"
+    v-if="sharedBrowser"
+    no-access-control
+    :location="locationStore.location"
+    :items-per-page.sync="clientSettings.rowsPerPage"
+    :items-per-page-options="itemsPerPageOptions"
+    @update:location="setLocation($event)"
+  >
+    <template #row="{ item }">
+      <span>{{ item.name }}</span>
+      <v-btn
+        v-if="isAnnotationFolder(item)"
+        class="ml-2"
+        x-small
+        color="primary"
+        depressed
+        :to="{ name: 'previewer', params: { id: item._id } }"
+      >
+        Preview Data
+      </v-btn>
+      <v-btn
+        v-if="isRequestableFolder(item)"
+        class="ml-2"
+        x-small
+        color="primary"
+        depressed
+      >
+        Request Access
+      </v-btn>
+    </template>
+  </DiveGirderBrowser>
+  <DiveGirderBrowser
     ref="fileManager"
+    v-else
     v-model="locationStore.selected"
     :selectable="!getters['Location/locationIsViameFolder']"
-    :new-folder-enabled="
-      !locationStore.selected.length && !getters['Location/locationIsViameFolder']
-    "
+    new-folder-enabled
     :location="locationStore.location"
     :items-per-page.sync="clientSettings.rowsPerPage"
     :items-per-page-options="itemsPerPageOptions"
@@ -131,7 +208,7 @@ export default defineComponent({
         mdi-autorenew
       </v-icon>
       <v-btn
-        v-if="isAnnotationFolder(item)"
+        v-if="isSharableFolder(item)"
         class="ml-2"
         x-small
         color="primary"
@@ -141,14 +218,25 @@ export default defineComponent({
         Launch Annotator
       </v-btn>
       <v-btn
-        v-if="isAnnotationFolder(item)"
+        v-if="isSharableFolder(item) && !item.meta.sharedMediaId"
         class="ml-2"
         x-small
         color="primary"
         depressed
-        :to="{ name: 'previewer', params: { id: item._id } }"
+        @click.stop="toggleShare(item)"
       >
-        Preview Data
+        Share
+      </v-btn>
+      <v-btn
+        v-if="isSharableFolder(item) && !!item.meta.sharedMediaId"
+        class="ml-2"
+        x-small
+        rounded
+        outlined
+        depressed
+        @click.stop="toggleShare(item)"
+      >
+        Unshare
       </v-btn>
       <v-chip
         v-if="(item.foreign_media_id)"

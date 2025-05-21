@@ -212,6 +212,11 @@ async function saveMetadata(id: string, args: DatasetMetaMutable) {
   return client.post(`dataset/${id}/meta`, args);
 }
 
+async function shareData(id: string, share: boolean) {
+  const client = await getClient();
+  return client.post(`dataset/${id}/share`, share);
+}
+
 async function saveDetections(id: string, args: SaveDetectionsArgs) {
   const client = await getClient();
   return client.post(`dataset/${id}/detections`, args);
@@ -240,6 +245,7 @@ export {
   saveDetections,
   saveAttributes,
   saveAttributeTrackFilters,
+  shareData,
   openFromDisk,
   /* Nonstandard APIs */
   exportDataset,

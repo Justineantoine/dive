@@ -1,12 +1,16 @@
 import json
+import math
 from pathlib import Path
+from numpy import linspace
 from typing import Any, Dict, List, Optional, Tuple
 
 import cherrypy
 from girder.constants import AccessType
 from girder.exceptions import RestException
+from girder.models.collection import Collection
 from girder.models.folder import Folder
 from girder.models.item import Item
+from girder.models.file import File
 from girder.utility import ziputil
 from pydantic.main import BaseModel
 
@@ -57,15 +61,22 @@ def list_datasets(
     user: types.GirderUserModel,
     published: bool,
     shared: bool,
+    requested: bool,
     limit: int,
     offset: int,
     sortParams: Tuple[Tuple[str, int]],
 ):
-    """Enumerate all public and private data the user can access"""
     sort, sortDir = (sortParams or [['created', 1]])[0]
-    # based on https://stackoverflow.com/a/49483919
-    pipeline = [
-        {'$match': get_dataset_query(user, published, shared)},
+    pipeline = [{'$match': get_dataset_query(user, published, shared, requested)}]
+
+    if requested:
+        # Duplicate each dataset per requester
+        pipeline += [
+            {'$unwind': f'$access.request'},
+            {'$addFields': {'access_request_user': '$access.request'}}
+        ]
+
+    pipeline += [
         {
             '$facet': {
                 'results': [
@@ -87,10 +98,15 @@ def list_datasets(
             },
         },
     ]
+
     response = next(Folder().collection.aggregate(pipeline))
-    total = response['totalCount'][0]['count'] if len(response['results']) > 0 else 0
+    total = response['totalCount'][0]['count'] if response['totalCount'] else 0
     cherrypy.response.headers['Girder-Total-Count'] = total
-    return [Folder().filter(doc, additionalKeys=['ownerLogin']) for doc in response['results']]
+
+    return [
+        Folder().filter(doc, additionalKeys=['ownerLogin', 'access_request_user'])
+        for doc in response['results']
+    ]
 
 
 def get_dataset(
@@ -106,6 +122,82 @@ def get_dataset(
         **dsFolder['meta'],
     )
 
+
+def share_dataset(
+    dsFolder: types.GirderModel, user: types.GirderUserModel, share: bool
+) -> str:
+    crud.verify_dataset(dsFolder)
+    shared_collection = Collection().findOne({'name': 'Shared Data'})
+    shared_folder = Folder().findOne(
+        {
+            'name': dsFolder['name'],
+            'parentId': shared_collection['_id'],
+            'creatorId': user['_id']
+        }
+    )
+    if shared_folder is not None:
+        Folder().remove(shared_folder)
+
+    if share:
+        dataset_type = fromMeta(dsFolder, constants.TypeMarker)
+        if dataset_type not in [constants.ImageSequenceType, constants.LargeImageType]:
+            return {
+                "message": "Dataset type not suitable for sharing",
+            }
+        
+        def set_preview_frames(frames):
+            n_preview_frames =  math.ceil(0.2 * len(frames))
+            return linspace(0, len(frames) - 1, n_preview_frames, dtype=int).tolist()
+
+        shared_folder = Folder().createFolder(
+            parentType='collection',
+            parent=shared_collection,
+            name=dsFolder['name'],
+            creator=user,
+            public=True
+        )
+        shared_folder["meta"] = {key: value for (key, value) in dsFolder["meta"].items()}
+        Folder().save(shared_folder)
+        crud.get_or_create_auxiliary_folder(shared_folder, user)
+        crud_annotation.clone_annotations(dsFolder, shared_folder, user)
+        
+        frames = (
+            crud.valid_images(dsFolder, user)
+            if dataset_type == constants.ImageSequenceType
+            else crud.valid_large_images(dsFolder, user)
+        )
+        preview_frames = set_preview_frames(frames)
+
+        for index, frame in enumerate(frames):
+            is_previewable = index in preview_frames
+
+            new_item = Item().createItem(
+                name=frame['name'],
+                creator=user,
+                folder=shared_folder,
+                description=frame.get('description', ''),
+                reuseExisting=False
+            )
+
+            if 'meta' in frame:
+                new_item['meta'] = frame['meta']
+                new_item = Item().save(new_item)
+            
+            if is_previewable:
+                for file in File().find({'itemId': frame['_id']}):
+                    File().copyFile(file, user, new_item)
+
+        update_metadata(shared_folder, { constants.PreviewFrames: preview_frames})
+        update_metadata(dsFolder, { constants.SharedMediaIdMarker: str(shared_folder['_id'])})
+
+        return {
+            "message": "Dataset shared",
+        }
+    else:
+        update_metadata(dsFolder, { constants.SharedMediaIdMarker: '' })
+        return {
+            "message": "Dataset unshared",
+        }
 
 def get_media(
     dsFolder: types.GirderModel, user: types.GirderUserModel
@@ -219,8 +311,8 @@ def update_attributes(dsFolder: types.GirderModel, data: dict):
     for attribute in validated.upsert:
         attributes_dict[str(attribute.key)] = attribute.dict(exclude_none=True)
 
-    upserted_len = len(validated.delete)
-    deleted_len = len(validated.upsert)
+    upserted_len = len(validated.upsert)
+    deleted_len = len(validated.delete)
 
     if upserted_len or deleted_len:
         update_metadata(dsFolder, {'attributes': attributes_dict})
@@ -379,6 +471,7 @@ def get_dataset_query(
     user: types.GirderUserModel,
     published: bool,
     shared: bool,
+    requested: bool,
     level=AccessType.READ,
 ):
     base_query = {
@@ -406,6 +499,16 @@ def get_dataset_query(
                         # Implicit public datasets should not be considered "shared"
                         'access.users': {'$elemMatch': {'id': user['_id']}}
                     },
+                ]
+            }
+        )
+    elif requested:
+        optional_query_parts.append(
+            {
+            '$and': 
+                [
+                    {'creatorId': user['_id']},
+                    {'access.request': {'$exists': True, '$not': {'$size': 0}}}
                 ]
             }
         )

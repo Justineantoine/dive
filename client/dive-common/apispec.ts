@@ -49,6 +49,10 @@ interface TrainingConfigs {
   default: string;
 }
 
+interface User {
+  id: string;
+}
+
 type Pipelines = Record<string, Category>;
 
 interface SaveDetectionsArgs {
@@ -126,8 +130,9 @@ interface DatasetMetaMutable {
   confidenceFilters?: Record<string, number>;
   attributes?: Readonly<Record<string, Attribute>>;
   attributeTrackFilters?: Readonly<Record<string, AttributeTrackFilter>>;
+  sharedMediaId?: Readonly<string>;
 }
-const DatasetMetaMutableKeys = ['attributes', 'confidenceFilters', 'customTypeStyling', 'customGroupStyling', 'attributeTrackFilters'];
+const DatasetMetaMutableKeys = ['attributes', 'confidenceFilters', 'customTypeStyling', 'customGroupStyling', 'attributeTrackFilters', 'sharedMediaId'];
 
 interface DatasetMeta extends DatasetMetaMutable {
   id: Readonly<string>;
@@ -165,6 +170,7 @@ interface Api {
   saveAttributes(datasetId: string, args: SaveAttributeArgs): Promise<unknown>;
   saveAttributeTrackFilters(datasetId: string,
     args: SaveAttributeTrackFilterArgs): Promise<unknown>;
+  shareData(datasetId: string, share: boolean): Promise<unknown>;
   // Non-Endpoint shared functions
   openFromDisk(datasetType: DatasetType | 'bulk' | 'calibration' | 'annotation' | 'text' | 'zip', directory?: boolean):
     Promise<{canceled?: boolean; filePaths: string[]; fileList?: File[]; root?: string}>;
@@ -212,6 +218,7 @@ export {
   SaveAttributeArgs,
   SaveAttributeTrackFilterArgs,
   TrainingConfigs,
+  User,
   MultiCamMedia,
   MediaImportResponse,
 };
