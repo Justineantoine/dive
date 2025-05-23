@@ -136,7 +136,7 @@ function saveMetadata(folderId: string, metadata: DatasetMetaMutable) {
 }
 
 function requestAccess(folderId: string) {
-  return girderRest.put(`/dive_dataset/${folderId}/request-access`);
+  return girderRest.put(`/dive_sharable_dataset/${folderId}/request`);
 }
 
 function grantAccess(folderId: string, userId: string) {

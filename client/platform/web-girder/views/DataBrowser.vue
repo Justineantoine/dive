@@ -5,11 +5,13 @@ import {
 import {
   getLocationType, GirderModel,
 } from '@girder/components/src';
-import { useApi } from 'dive-common/apispec';
 import { itemsPerPageOptions } from 'dive-common/constants';
 import { clientSettings } from 'dive-common/store/settings';
 import { useGirderRest } from 'platform/web-girder/plugins/girder';
-import { useStore, LocationType, isGirderModel } from '../store/types';
+import { shareData, requestAccess } from 'platform/web-girder/api';
+import {
+  useStore, LocationType, isGirderModel, AccessRequest,
+} from '../store/types';
 import Upload from './Upload.vue';
 import eventBus from '../eventBus';
 
@@ -28,7 +30,6 @@ export default defineComponent({
     const uploaderDialog = ref(false);
     const locationStore = store.state.Location;
     const { getters } = store;
-    const { shareData } = useApi();
 
     function setLocation(location: LocationType) {
       store.dispatch('Location/setRouteFromLocation', location);
@@ -55,18 +56,36 @@ export default defineComponent({
     }
 
     function isRequestableFolder(item: GirderModel) {
-      return isAnnotationFolder(item) && !isUserOwner(item);
+      return isAnnotationFolder(item) && !(isUserOwner(item) || girderRest.user.admin);
+    }
+
+    function hasUserRequested(item: GirderModel) {
+      return item.access?.requests?.some((req: AccessRequest) => req.id === girderRest.user._id) ?? false;
     }
 
     function isSharableFolder(item: GirderModel) {
       return isAnnotationFolder(item) && isUserOwner(item);
     }
 
-    function toggleShare(item: GirderModel) {
-      const isShared = !!item.meta.sharedMediaId;
-      shareData(item._id, !isShared).then(() => {
+    function isViewableFolder(item: GirderModel) {
+      return isAnnotationFolder(item) && (isUserOwner(item) || girderRest.user.admin);
+    }
+
+    function onShare(item: GirderModel) {
+      shareData(item._id, true).then(() => {
         eventBus.$emit('refresh-data-browser');
-        //fileManager.value.$refs.girderBrowser.refresh();
+      });
+    }
+
+    function onUnshare(item: GirderModel) {
+      shareData(item._id, false).then(() => {
+        eventBus.$emit('refresh-data-browser');
+      });
+    }
+
+    function onRequest(item: GirderModel) {
+      requestAccess(item._id).then(() => {
+        eventBus.$emit('refresh-data-browser');
       });
     }
 
@@ -103,7 +122,9 @@ export default defineComponent({
       fileManager,
       locationStore,
       getters,
-      toggleShare,
+      onShare,
+      onUnshare,
+      onRequest,
       shouldShowUpload,
       shouldShowNewFolder,
       sharedBrowser,
@@ -116,7 +137,9 @@ export default defineComponent({
       isUserOwner,
       isRequestableFolder,
       isSharableFolder,
+      isViewableFolder,
       handleNotification,
+      hasUserRequested,
       setLocation,
       updateUploading,
     };
@@ -126,7 +149,7 @@ export default defineComponent({
 
 <template>
   <DiveGirderBrowser
-    ref="sharedFileManager"
+    ref="fileManager"
     v-if="sharedBrowser"
     no-access-control
     :location="locationStore.location"
@@ -147,14 +170,25 @@ export default defineComponent({
         Preview Data
       </v-btn>
       <v-btn
-        v-if="isRequestableFolder(item)"
+        v-if="isRequestableFolder(item) && !hasUserRequested(item)"
         class="ml-2"
         x-small
         color="primary"
         depressed
+        @click.stop="onRequest(item)"
       >
         Request Access
       </v-btn>
+      <v-chip
+        v-else-if="isRequestableFolder(item) && hasUserRequested(item)"
+        color="white"
+        x-small
+        outlined
+        disabled
+        class="my-0 mx-3"
+      >
+        access requested
+      </v-chip>
     </template>
   </DiveGirderBrowser>
   <DiveGirderBrowser
@@ -208,7 +242,7 @@ export default defineComponent({
         mdi-autorenew
       </v-icon>
       <v-btn
-        v-if="isSharableFolder(item)"
+        v-if="isViewableFolder(item)"
         class="ml-2"
         x-small
         color="primary"
@@ -223,7 +257,7 @@ export default defineComponent({
         x-small
         color="primary"
         depressed
-        @click.stop="toggleShare(item)"
+        @click.stop="onShare(item)"
       >
         Share
       </v-btn>
@@ -234,7 +268,7 @@ export default defineComponent({
         rounded
         outlined
         depressed
-        @click.stop="toggleShare(item)"
+        @click.stop="onUnshare(item)"
       >
         Unshare
       </v-btn>

@@ -22,38 +22,11 @@ from .views_configuration import ConfigurationResource
 from .views_dataset import DatasetResource
 from .views_override import countJobs, use_private_queue, list_shared_folders, get_root_path_or_relative
 from .views_rpc import RpcResource
+from .views_sharable_dataset import SharableDatasetResource
 
 
 class GirderPlugin(plugin.GirderPlugin):
     def load(self, info):
-        
-        def setRequestAccess(self, doc, user, level, save=False, flags=None, currentUser=None,
-                      force=False):
-            """
-            Set user-level access on the resource.
-
-            :param doc: The resource document to set access on.
-            :type doc: dict
-            :param user: The user to grant or remove access to.
-            :type user: dict
-            :param level: What level of access the user should have. Set to None
-                to remove all access for this user.
-            :type level: AccessType or None
-            :param save: Whether to save the object to the database afterward.
-                Set this to False if you want to wait to save the document for performance reasons.
-            :type save: bool
-            :param flags: List of access flags to grant to the group.
-            :type flags: specific flag identifier, or a list/tuple/set of them
-            :param currentUser: The user performing this action. Only required if attempting
-                to set admin-only flags on the resource.
-            :param force: Set this to True to set the flags regardless of the passed in
-                currentUser's permissions (only matters if flags are passed).
-            :type force: bool
-            :returns: The modified resource document.
-            """
-            return self._setAccess(doc, user['_id'], 'requests', level, save, flags, currentUser, force)
-        Folder.setRequestAccess = setRequestAccess
-
         Collection().createCollection(name='Shared Data', description='Collection containing shared datasets', reuseExisting=True)
         
         ModelImporter.registerModel('trackItem', TrackItem, plugin='dive_server')
@@ -63,6 +36,7 @@ class GirderPlugin(plugin.GirderPlugin):
         info["apiRoot"].dive_annotation = AnnotationResource("dive_annotation")
         info["apiRoot"].dive_configuration = ConfigurationResource("dive_configuration")
         info["apiRoot"].dive_dataset = DatasetResource("dive_dataset")
+        info["apiRoot"].dive_sharable_dataset = SharableDatasetResource("dive_sharable_dataset")
         info["apiRoot"].dive_rpc = RpcResource("dive_rpc")
         # required because girder doesn't load plugins in order so we need to manually load first.
         getPlugin('jobs').load(info)

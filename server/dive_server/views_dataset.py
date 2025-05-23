@@ -169,13 +169,13 @@ class DatasetResource(Resource):
 
     @access.user
     @autoDescribeRoute(
-        Description("Request access to data")
+        Description("Share/Unshare data to other users")
         .modelParam(
             "id", level=AccessType.READ, **DatasetModelParam
         )
         .param(
             "share",
-            "Share media",
+            "Share data",
             paramType="query",
             dataType="boolean",
         )

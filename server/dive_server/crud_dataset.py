@@ -199,6 +199,23 @@ def share_dataset(
             "message": "Dataset unshared",
         }
 
+
+def request_access(
+    dsFolder: types.GirderModel, user: types.GirderUserModel
+) -> str:
+    if dsFolder["creatorId"] == user['_id'] or user['admin']:
+        return {
+            "message": "User already has access to this data",
+        }
+    elif Folder().hasAccessRequest(dsFolder, user, level=AccessType.READ):
+        return {
+            "message": "User has already requested access to this data",
+        }
+    Folder().setUserAccessRequest(dsFolder, user, level=AccessType.READ, save=True)
+    return {
+        "message": "Access request sent",
+    }
+
 def get_media(
     dsFolder: types.GirderModel, user: types.GirderUserModel
 ) -> models.DatasetSourceMedia:

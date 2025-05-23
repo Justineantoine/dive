@@ -49,6 +49,11 @@ export interface RootState {
   User: UserState;
 }
 
+export interface AccessRequest {
+  id: string,
+  level: number,
+}
+
 export function useStore(): Store<RootState> {
   const store: Store<RootState> | undefined = inject('store');
   if (store === undefined) {
