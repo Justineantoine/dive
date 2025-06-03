@@ -49,9 +49,16 @@ export interface RootState {
   User: UserState;
 }
 
+export interface DatasetAccessRequest {
+  id: string;
+  status: string;
+}
+
 export interface AccessRequest {
-  id: string,
-  level: number,
+  datasetId: string;
+  request: DatasetAccessRequest;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  [key: string]: any;
 }
 
 export function useStore(): Store<RootState> {

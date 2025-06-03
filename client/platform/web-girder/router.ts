@@ -9,7 +9,9 @@ import Login from './views/Login.vue';
 import RouterPage from './views/RouterPage.vue';
 import AdminPage from './views/AdminPage.vue';
 import ViewerLoader from './views/ViewerLoader.vue';
+import ShareTabs from './views/ShareTabs.vue';
 import DataShared from './views/DataShared.vue';
+import DataSharedRequests from './views/DataSharedRequests.vue';
 import DataBrowser from './views/DataBrowser.vue';
 import Summary from './views/Summary.vue';
 
@@ -112,8 +114,29 @@ const router = new Router({
             {
               path: 'shared',
               name: 'shared',
-              component: DataShared,
-              beforeEnter,
+              component: ShareTabs,
+              redirect: { name: 'shared-with-all' },
+              children: [
+                {
+                  path: 'shared-with-me',
+                  name: 'shared-with-me',
+                  component: DataShared,
+                  props: (route) => ({ ...route.params, sharedWithMe: true }),
+                  beforeEnter,
+                },
+                {
+                  path: 'shared-with-all',
+                  name: 'shared-with-all',
+                  component: DataShared,
+                  beforeEnter,
+                },
+                {
+                  path: 'requests',
+                  name: 'requests',
+                  component: DataSharedRequests,
+                  beforeEnter,
+                },
+              ],
             },
             {
               path: 'summary',

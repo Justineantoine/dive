@@ -31,6 +31,12 @@ const locationModule: Module<LocationState, RootState> = {
       }
       return false;
     },
+    locationIsSharableFolder(state) {
+      if (state.location && isGirderModel(state.location)) {
+        return state.location?.meta?.sharable;
+      }
+      return false;
+    },
     defaultRoute() {
       if (girderRest.user) {
         return {
@@ -96,10 +102,11 @@ const locationModule: Module<LocationState, RootState> = {
        */
       if (
         isGirderModel(location)
-        && getters.locationIsViameFolder
-        && location.name === 'auxiliary'
+        && ((getters.locationIsViameFolder
+        && location.name === 'auxiliary')
+        || location?.meta?.sharable)
       ) {
-        /* Prevent navigation into auxiliary folder */
+        /* Prevent navigation into auxiliary or sharable folder */
         return;
       }
       router.push(getRouteFromLocation(location));

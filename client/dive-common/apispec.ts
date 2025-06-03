@@ -130,9 +130,11 @@ interface DatasetMetaMutable {
   confidenceFilters?: Record<string, number>;
   attributes?: Readonly<Record<string, Attribute>>;
   attributeTrackFilters?: Readonly<Record<string, AttributeTrackFilter>>;
-  sharedMediaId?: Readonly<string>;
+  sharable?: Readonly<boolean>;
+  sharableMediaId?: Readonly<string>;
+  previewFrames?: Readonly<Array<number>>;
 }
-const DatasetMetaMutableKeys = ['attributes', 'confidenceFilters', 'customTypeStyling', 'customGroupStyling', 'attributeTrackFilters', 'sharedMediaId'];
+const DatasetMetaMutableKeys = ['attributes', 'confidenceFilters', 'customTypeStyling', 'customGroupStyling', 'attributeTrackFilters', 'sharableMediaId'];
 
 interface DatasetMeta extends DatasetMetaMutable {
   id: Readonly<string>;

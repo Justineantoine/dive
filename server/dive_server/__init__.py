@@ -6,7 +6,6 @@ from girder.constants import AccessType
 from girder.models.setting import Setting
 from girder.models.user import User
 from girder.models.folder import Folder
-from girder.models.collection import Collection
 from girder.plugin import getPlugin
 from girder.utility import mail_utils
 from girder.utility.model_importer import ModelImporter
@@ -20,19 +19,17 @@ from .event import DIVES3Imports, process_fs_import, process_s3_import, send_new
 from .views_annotation import AnnotationResource
 from .views_configuration import ConfigurationResource
 from .views_dataset import DatasetResource
-from .views_override import countJobs, use_private_queue, list_shared_folders, get_root_path_or_relative
+from .views_override import countJobs, use_private_queue, list_shared_folders, get_root_path_or_relative, find
 from .views_rpc import RpcResource
 from .views_sharable_dataset import SharableDatasetResource
 
 
 class GirderPlugin(plugin.GirderPlugin):
     def load(self, info):
-        Collection().createCollection(name='Shared Data', description='Collection containing shared datasets', reuseExisting=True)
-        
         ModelImporter.registerModel('trackItem', TrackItem, plugin='dive_server')
         ModelImporter.registerModel('groupItem', GroupItem, plugin='dive_server')
         ModelImporter.registerModel('revisionLogItem', RevisionLogItem, plugin='dive_server')
-
+        
         info["apiRoot"].dive_annotation = AnnotationResource("dive_annotation")
         info["apiRoot"].dive_configuration = ConfigurationResource("dive_configuration")
         info["apiRoot"].dive_dataset = DatasetResource("dive_dataset")
@@ -45,6 +42,8 @@ class GirderPlugin(plugin.GirderPlugin):
         info["apiRoot"].user.route("PUT", (":id", "use_private_queue"), use_private_queue)
         info["apiRoot"].folder.route("GET", ("shared-folders",), list_shared_folders)
         info["apiRoot"].folder.route("GET", (":id", "rootpath_or_relative"), get_root_path_or_relative)
+        info["apiRoot"].folder.removeRoute("GET", ())
+        info["apiRoot"].folder.route("GET", (), find)
         User().exposeFields(AccessType.READ, constants.UserPrivateQueueEnabledMarker)
 
         # Expose Job dataset assocation

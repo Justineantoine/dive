@@ -110,6 +110,21 @@ def verify_dataset(folder: GirderModel):
     return True
 
 
+def verify_sharable_dataset(folder: GirderModel):
+    """Verify that a given folder is a sharable DIVE dataset"""
+    if (not asbool(fromMeta(folder, constants.DatasetMarker, False)) or 
+        not asbool(fromMeta(folder, constants.SharableMarker, False))):
+        raise RestException('Source folder is not a valid DIVE sharable dataset', code=404)
+    if len(fromMeta(folder, constants.PreviewFrames, [])) < 1:
+        raise RestException('Sharable dataset must have preview frames', code=404)
+    dstype = fromMeta(folder, 'type')
+    if dstype not in [constants.ImageSequenceType, constants.LargeImageType]:
+        raise ValueError(
+            f'Source folder is marked as sharable dataset but has invalid type {dstype} (cannot be a video)'
+        )
+    return True
+
+
 def getCloneRoot(owner: GirderModel, source_folder: GirderModel):
     """Get the source media folder associated with a clone"""
     verify_dataset(source_folder)
@@ -184,3 +199,13 @@ def valid_large_images(
         images,
         key=functools.cmp_to_key(unwrapItem),
     )
+
+def create_user_shared_folder(user):
+    folder = Folder().createFolder(
+        parentType='user',
+        parent=user,
+        name='Shared',
+        creator=user,
+        reuseExisting=True
+    )
+    return Folder().save(folder)

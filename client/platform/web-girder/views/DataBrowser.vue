@@ -8,9 +8,9 @@ import {
 import { itemsPerPageOptions } from 'dive-common/constants';
 import { clientSettings } from 'dive-common/store/settings';
 import { useGirderRest } from 'platform/web-girder/plugins/girder';
-import { shareData, requestAccess } from 'platform/web-girder/api';
+import { shareData } from 'platform/web-girder/api';
 import {
-  useStore, LocationType, isGirderModel, AccessRequest,
+  useStore, LocationType, isGirderModel,
 } from '../store/types';
 import Upload from './Upload.vue';
 import eventBus from '../eventBus';
@@ -51,40 +51,22 @@ export default defineComponent({
       return item._modelType === 'folder' && item.meta.annotate;
     }
 
+    function canFolderBeShared(item: GirderModel) {
+      return isAnnotationFolder(item) && !item.public;
+    }
+
     function isUserOwner(item: GirderModel) {
-      return item.creatorId === girderRest.user._id;
+      if (item._modelType === 'folder') {
+        return item.creatorId === girderRest.user._id || girderRest.user.admin;
+      }
+      if (item._modelType === 'user') {
+        return item._id === girderRest.user._id || girderRest.user.admin;
+      }
+      return girderRest.user.admin;
     }
 
-    function isRequestableFolder(item: GirderModel) {
-      return isAnnotationFolder(item) && !(isUserOwner(item) || girderRest.user.admin);
-    }
-
-    function hasUserRequested(item: GirderModel) {
-      return item.access?.requests?.some((req: AccessRequest) => req.id === girderRest.user._id) ?? false;
-    }
-
-    function isSharableFolder(item: GirderModel) {
-      return isAnnotationFolder(item) && isUserOwner(item);
-    }
-
-    function isViewableFolder(item: GirderModel) {
-      return isAnnotationFolder(item) && (isUserOwner(item) || girderRest.user.admin);
-    }
-
-    function onShare(item: GirderModel) {
-      shareData(item._id, true).then(() => {
-        eventBus.$emit('refresh-data-browser');
-      });
-    }
-
-    function onUnshare(item: GirderModel) {
-      shareData(item._id, false).then(() => {
-        eventBus.$emit('refresh-data-browser');
-      });
-    }
-
-    function onRequest(item: GirderModel) {
-      requestAccess(item._id).then(() => {
+    function toggleShare(item: GirderModel) {
+      shareData(item._id, !item.meta.sharableMediaId).then(() => {
         eventBus.$emit('refresh-data-browser');
       });
     }
@@ -106,11 +88,11 @@ export default defineComponent({
       && isUserOwner(locationStore.location)
     ));
 
-    const sharedBrowser = computed(() => (
+    const shouldShowSelect = computed(() => (
       locationStore.location
-      && getLocationType(locationStore.location) === 'collection'
+      && !getters['Location/locationIsViameFolder']
       && isGirderModel(locationStore.location)
-      && locationStore.location.name === 'Shared Data'
+      && isUserOwner(locationStore.location)
     ));
 
     eventBus.$on('refresh-data-browser', handleNotification);
@@ -122,12 +104,10 @@ export default defineComponent({
       fileManager,
       locationStore,
       getters,
-      onShare,
-      onUnshare,
-      onRequest,
+      toggleShare,
       shouldShowUpload,
       shouldShowNewFolder,
-      sharedBrowser,
+      shouldShowSelect,
       uploaderDialog,
       uploading,
       clientSettings,
@@ -135,11 +115,8 @@ export default defineComponent({
       /* methods */
       isAnnotationFolder,
       isUserOwner,
-      isRequestableFolder,
-      isSharableFolder,
-      isViewableFolder,
+      canFolderBeShared,
       handleNotification,
-      hasUserRequested,
       setLocation,
       updateUploading,
     };
@@ -150,53 +127,9 @@ export default defineComponent({
 <template>
   <DiveGirderBrowser
     ref="fileManager"
-    v-if="sharedBrowser"
-    no-access-control
-    :location="locationStore.location"
-    :items-per-page.sync="clientSettings.rowsPerPage"
-    :items-per-page-options="itemsPerPageOptions"
-    @update:location="setLocation($event)"
-  >
-    <template #row="{ item }">
-      <span>{{ item.name }}</span>
-      <v-btn
-        v-if="isAnnotationFolder(item)"
-        class="ml-2"
-        x-small
-        color="primary"
-        depressed
-        :to="{ name: 'previewer', params: { id: item._id } }"
-      >
-        Preview Data
-      </v-btn>
-      <v-btn
-        v-if="isRequestableFolder(item) && !hasUserRequested(item)"
-        class="ml-2"
-        x-small
-        color="primary"
-        depressed
-        @click.stop="onRequest(item)"
-      >
-        Request Access
-      </v-btn>
-      <v-chip
-        v-else-if="isRequestableFolder(item) && hasUserRequested(item)"
-        color="white"
-        x-small
-        outlined
-        disabled
-        class="my-0 mx-3"
-      >
-        access requested
-      </v-chip>
-    </template>
-  </DiveGirderBrowser>
-  <DiveGirderBrowser
-    ref="fileManager"
-    v-else
     v-model="locationStore.selected"
-    :selectable="!getters['Location/locationIsViameFolder']"
-    new-folder-enabled
+    :selectable="shouldShowSelect"
+    :new-folder-enabled="shouldShowNewFolder"
     :location="locationStore.location"
     :items-per-page.sync="clientSettings.rowsPerPage"
     :items-per-page-options="itemsPerPageOptions"
@@ -242,7 +175,7 @@ export default defineComponent({
         mdi-autorenew
       </v-icon>
       <v-btn
-        v-if="isViewableFolder(item)"
+        v-if="isAnnotationFolder(item) && (isUserOwner(item) || item.public)"
         class="ml-2"
         x-small
         color="primary"
@@ -252,25 +185,16 @@ export default defineComponent({
         Launch Annotator
       </v-btn>
       <v-btn
-        v-if="isSharableFolder(item) && !item.meta.sharedMediaId"
+        v-if="canFolderBeShared(item) && isUserOwner(item)"
         class="ml-2"
         x-small
         color="primary"
         depressed
-        @click.stop="onShare(item)"
+        :rounded="!!item.meta.sharableMediaId"
+        :outlined="!!item.meta.sharableMediaId"
+        @click.stop="toggleShare(item)"
       >
-        Share
-      </v-btn>
-      <v-btn
-        v-if="isSharableFolder(item) && !!item.meta.sharedMediaId"
-        class="ml-2"
-        x-small
-        rounded
-        outlined
-        depressed
-        @click.stop="onUnshare(item)"
-      >
-        Unshare
+        {{ !item.meta.sharableMediaId ? 'Share' : 'Unshare' }}
       </v-btn>
       <v-chip
         v-if="(item.foreign_media_id)"

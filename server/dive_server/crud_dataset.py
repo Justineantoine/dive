@@ -1,16 +1,12 @@
 import json
-import math
 from pathlib import Path
-from numpy import linspace
 from typing import Any, Dict, List, Optional, Tuple
 
 import cherrypy
 from girder.constants import AccessType
 from girder.exceptions import RestException
-from girder.models.collection import Collection
 from girder.models.folder import Folder
 from girder.models.item import Item
-from girder.models.file import File
 from girder.utility import ziputil
 from pydantic.main import BaseModel
 
@@ -109,6 +105,44 @@ def list_datasets(
     ]
 
 
+def list_shared_datasets(
+    user: types.GirderUserModel,
+    limit: int,
+    offset: int,
+    sortParams: Tuple[Tuple[str, int]],
+):
+    sort, sortDir = (sortParams or [['created', 1]])[0]
+    pipeline = [{'$match': get_shared_dataset_query(user)}]
+
+    pipeline += [
+        {
+            '$facet': {
+                'results': [
+                    {'$sort': {sort: sortDir}},
+                    {'$skip': offset},
+                    {'$limit': limit},
+                    {
+                        '$lookup': {
+                            'from': 'user',
+                            'localField': 'creatorId',
+                            'foreignField': '_id',
+                            'as': 'ownerLogin',
+                        },
+                    },
+                    {'$set': {'ownerLogin': {'$first': '$ownerLogin'}}},
+                    {'$set': {'ownerLogin': '$ownerLogin.login'}},
+                ],
+                'totalCount': [{'$count': 'count'}],
+            },
+        },
+    ]
+
+    response = next(Folder().collection.aggregate(pipeline))
+    total = response['totalCount'][0]['count'] if response['totalCount'] else 0
+    cherrypy.response.headers['Girder-Total-Count'] = total
+    return [Folder().filter(doc, additionalKeys=['ownerLogin']) for doc in response['results']]
+
+
 def get_dataset(
     dsFolder: types.GirderModel, user: types.GirderUserModel
 ) -> models.GirderMetadataStatic:
@@ -122,99 +156,6 @@ def get_dataset(
         **dsFolder['meta'],
     )
 
-
-def share_dataset(
-    dsFolder: types.GirderModel, user: types.GirderUserModel, share: bool
-) -> str:
-    crud.verify_dataset(dsFolder)
-    shared_collection = Collection().findOne({'name': 'Shared Data'})
-    shared_folder = Folder().findOne(
-        {
-            'name': dsFolder['name'],
-            'parentId': shared_collection['_id'],
-            'creatorId': user['_id']
-        }
-    )
-    if shared_folder is not None:
-        Folder().remove(shared_folder)
-
-    if share:
-        dataset_type = fromMeta(dsFolder, constants.TypeMarker)
-        if dataset_type not in [constants.ImageSequenceType, constants.LargeImageType]:
-            return {
-                "message": "Dataset type not suitable for sharing",
-            }
-        
-        def set_preview_frames(frames):
-            n_preview_frames =  math.ceil(0.2 * len(frames))
-            return linspace(0, len(frames) - 1, n_preview_frames, dtype=int).tolist()
-
-        shared_folder = Folder().createFolder(
-            parentType='collection',
-            parent=shared_collection,
-            name=dsFolder['name'],
-            creator=user,
-            public=True
-        )
-        shared_folder["meta"] = {key: value for (key, value) in dsFolder["meta"].items()}
-        Folder().save(shared_folder)
-        crud.get_or_create_auxiliary_folder(shared_folder, user)
-        crud_annotation.clone_annotations(dsFolder, shared_folder, user)
-        
-        frames = (
-            crud.valid_images(dsFolder, user)
-            if dataset_type == constants.ImageSequenceType
-            else crud.valid_large_images(dsFolder, user)
-        )
-        preview_frames = set_preview_frames(frames)
-
-        for index, frame in enumerate(frames):
-            is_previewable = index in preview_frames
-
-            new_item = Item().createItem(
-                name=frame['name'],
-                creator=user,
-                folder=shared_folder,
-                description=frame.get('description', ''),
-                reuseExisting=False
-            )
-
-            if 'meta' in frame:
-                new_item['meta'] = frame['meta']
-                new_item = Item().save(new_item)
-            
-            if is_previewable:
-                for file in File().find({'itemId': frame['_id']}):
-                    File().copyFile(file, user, new_item)
-
-        update_metadata(shared_folder, { constants.PreviewFrames: preview_frames})
-        update_metadata(dsFolder, { constants.SharedMediaIdMarker: str(shared_folder['_id'])})
-
-        return {
-            "message": "Dataset shared",
-        }
-    else:
-        update_metadata(dsFolder, { constants.SharedMediaIdMarker: '' })
-        return {
-            "message": "Dataset unshared",
-        }
-
-
-def request_access(
-    dsFolder: types.GirderModel, user: types.GirderUserModel
-) -> str:
-    if dsFolder["creatorId"] == user['_id'] or user['admin']:
-        return {
-            "message": "User already has access to this data",
-        }
-    elif Folder().hasAccessRequest(dsFolder, user, level=AccessType.READ):
-        return {
-            "message": "User has already requested access to this data",
-        }
-    Folder().setUserAccessRequest(dsFolder, user, level=AccessType.READ, save=True)
-    return {
-        "message": "Access request sent",
-    }
 
 def get_media(
     dsFolder: types.GirderModel, user: types.GirderUserModel
@@ -259,26 +200,23 @@ def get_media(
             else:
                 sourceVideoResource = videoResource
     elif source_type == constants.ImageSequenceType:
-        preview_frames = fromMeta(dsFolder, constants.PreviewFrames)
         imageData = [
             models.MediaResource(
-                id=str(image["_id"]) if preview_frames is None or index in preview_frames else '',
-                url=get_url(dsFolder, image) if preview_frames is None or index in preview_frames else '',
+                id=str(image["_id"]),
+                url=get_url(dsFolder, image),
                 filename=image['name'],
             )
-            for index, image in enumerate(crud.valid_images(dsFolder, user))
+            for image in crud.valid_images(dsFolder, user)
         ]
 
     elif source_type == constants.LargeImageType:
-        preview_frames = fromMeta(dsFolder, constants.PreviewFrames)
         imageData = [
             models.MediaResource(
-                id=str(image["_id"]) if preview_frames is None or index in preview_frames else '',
-                url=(get_large_image_metadata_url(image, modelType='item')
-                     if preview_frames is None or index in preview_frames else ''),
+                id=str(image["_id"]),
+                url=get_large_image_metadata_url(image, modelType='item'),
                 filename=image['name'],
             )
-            for index, image in enumerate(crud.valid_large_images(dsFolder, user))
+            for image in crud.valid_large_images(dsFolder, user)
         ]
 
     else:
@@ -488,7 +426,7 @@ def get_dataset_query(
     user: types.GirderUserModel,
     published: bool,
     shared: bool,
-    requested: bool,
+    requested: bool=False,
     level=AccessType.READ,
 ):
     base_query = {
@@ -534,7 +472,19 @@ def get_dataset_query(
         return {'$and': [base_query, {'$or': optional_query_parts}]}
     return base_query
 
-
+def get_shared_dataset_query(
+    user: types.GirderUserModel
+):
+    return {
+        '$and': [
+            # Find datasets
+            {'meta.annotate': True},
+            # not owned by the current user
+            {'$nor': [{'creatorId': {'$eq': user['_id']}}, {'creatorId': {'$eq': None}}]},
+            # But marked as shared
+            {f'meta.{constants.SharableMarker}': True},
+        ]
+    }
 def validate_files(files: List[str]):
     """
     Given a collection of filenames, guess based on regular expressions

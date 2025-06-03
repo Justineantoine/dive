@@ -3,7 +3,7 @@ import { defineComponent } from 'vue';
 import { useStore } from '../store/types';
 
 export default defineComponent({
-  name: 'ShareTab',
+  name: 'HomeTabs',
   props: {
     value: {
       type: Number,
@@ -45,7 +45,7 @@ export default defineComponent({
       <v-icon class="tab-icon">
         mdi-share-variant
       </v-icon>
-      Shared with Me
+      Shared Data
     </v-tab>
     <v-tab :to="{ name: 'summary' }">
       <v-icon class="tab-icon">

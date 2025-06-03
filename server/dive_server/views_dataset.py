@@ -36,7 +36,6 @@ class DatasetResource(Resource):
         self.route("POST", (), self.create_dataset)
         self.route("GET", (), self.list_datasets)
         self.route("GET", (":id",), self.get_meta)
-        self.route("POST", (":id", "share"), self.share_dataset)
         self.route("GET", (":id", "media"), self.get_media)
         self.route("GET", ("export",), self.export)
         self.route("GET", (":id", "configuration"), self.get_configuration)
@@ -166,22 +165,6 @@ class DatasetResource(Resource):
             offset,
             sort,
         )
-
-    @access.user
-    @autoDescribeRoute(
-        Description("Share/Unshare data to other users")
-        .modelParam(
-            "id", level=AccessType.READ, **DatasetModelParam
-        )
-        .param(
-            "share",
-            "Share data",
-            paramType="query",
-            dataType="boolean",
-        )
-    )
-    def share_dataset(self, folder, share):
-        return crud_dataset.share_dataset(folder, self.getCurrentUser(), share)
 
     @access.user
     @autoDescribeRoute(

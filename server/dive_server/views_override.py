@@ -3,8 +3,8 @@
 import types
 from girder.api import access
 from girder.api.describe import Description, autoDescribeRoute
-from girder.api.rest import boundHandler, Resource
-from girder.constants import AccessType, SortDir, TokenScope
+from girder.api.rest import boundHandler, Resource, filtermodel
+from girder.constants import AccessType, SortDir
 from girder.models.user import User
 from girder.models.folder import Folder
 from girder_jobs.models import job
@@ -106,3 +106,26 @@ def get_root_path_or_relative(folder):
         Resource().getCurrentUser(),
         folder
     )
+
+@access.public()
+@filtermodel(model=Folder)
+@autoDescribeRoute(
+    Description('Search for folders by certain properties.')
+    .notes('You must pass either a "folderId" or "text" field '
+        'to specify how you are searching for folders.  '
+        'If you omit one of these parameters the request will fail and respond : '
+        '"Invalid search mode."')
+    .responseClass('Folder', array=True)
+    .param('parentType', "Type of the folder's parent", required=False,
+        enum=['folder', 'user', 'collection'])
+    .param('parentId', "The ID of the folder's parent.", required=False)
+    .param('text', 'Pass to perform a text search.', required=False)
+    .param('name', 'Pass to lookup a folder by exact name match. Must '
+        'pass parentType and parentId as well when using this.', required=False)
+    .pagingParams(defaultSort='lowerName')
+    .errorResponse()
+    .errorResponse('Read access was denied on the parent resource.', 403)
+)
+def find(parentType, parentId, text, name, limit, offset, sort):
+    user = Resource().getCurrentUser()
+    return crud_override.find(user, parentType, parentId, text, name, limit, offset, sort)

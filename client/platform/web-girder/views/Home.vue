@@ -17,7 +17,7 @@ import Export from './Export.vue';
 import Upload from './Upload.vue';
 import DataDetails from './DataDetails.vue';
 import Clone from './Clone.vue';
-import ShareTab from './ShareTab.vue';
+import HomeTabs from './HomeTabs.vue';
 import { useStore } from '../store/types';
 import eventBus from '../eventBus';
 
@@ -46,7 +46,7 @@ export default defineComponent({
     Upload,
     RunPipelineMenu,
     RunTrainingMenu,
-    ShareTab,
+    HomeTabs,
   },
   // everything below needs to be refactored to composition-api
   inject: ['girderRest'],
@@ -209,7 +209,7 @@ export default defineComponent({
             class="mb-4"
             rounded
           >
-            <ShareTab
+            <HomeTabs
               :value="0"
             />
           </v-toolbar>

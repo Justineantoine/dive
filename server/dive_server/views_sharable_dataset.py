@@ -1,16 +1,13 @@
-import cherrypy
+from bson.objectid import ObjectId
+
 from girder.api import access
 from girder.api.describe import Description, autoDescribeRoute
 from girder.api.rest import Resource
-from girder.constants import AccessType, SortDir, TokenScope
-from girder.exceptions import RestException
-from girder.models.file import File
+from girder.constants import AccessType, SortDir
 from girder.models.folder import Folder
-from girder.models.item import Item
+from girder.models.user import User
 
-from dive_utils import constants
-
-from . import crud, crud_dataset
+from . import crud_sharable_dataset
 
 DatasetModelParam = {
     'description': "dataset id",
@@ -27,85 +24,116 @@ class SharableDatasetResource(Resource):
         super(SharableDatasetResource, self).__init__()
         self.resourceName = resourceName
 
-        def setUserAccessRequest(self, doc, user, level, save=False, flags=None, currentUser=None,
-                      force=False):
-            """
-            Set user-level access on the resource.
+        def setUserAccessRequest(self, doc, user, status='pending'):
+            id = user['_id']
+            if not isinstance(id, ObjectId):
+                id = ObjectId(id)
 
-            :param doc: The resource document to set access on.
-            :type doc: dict
-            :param user: The user to grant or remove access to.
-            :type user: dict
-            :param level: What level of access the user should have. Set to None
-                to remove all access for this user.
-            :type level: AccessType or None
-            :param save: Whether to save the object to the database afterward.
-                Set this to False if you want to wait to save the document for performance reasons.
-            :type save: bool
-            :param flags: List of access flags to grant to the group.
-            :type flags: specific flag identifier, or a list/tuple/set of them
-            :param currentUser: The user performing this action. Only required if attempting
-                to set admin-only flags on the resource.
-            :param force: Set this to True to set the flags regardless of the passed in
-                currentUser's permissions (only matters if flags are passed).
-            :type force: bool
-            :returns: The modified resource document.
-            """
-            return self._setAccess(doc, user['_id'], 'requests', level, save, flags, currentUser, force)
+            if 'access' not in doc:
+                doc['access'] = {'requests': []}
+
+            key = 'access.requests'
+            update = {}
+            entry = {
+                'id': id,
+                'status': status
+            }
+
+            for index, perm in enumerate(doc['access']['requests']):
+                if perm['id'] == id:
+                    # if the id already exists we want to update with a $set
+                    doc['access']['requests'][index] = entry
+                    update['$set'] = {'%s.%s' % (key, index): entry}
+                    break
+            else:
+                doc['access']['requests'].append(entry)
+                update['$push'] = {key: entry}
+
+            doc = self._saveAcl(doc, update)
+            return doc
         
-        def hasAccessRequest(self, doc, user=None, level=AccessType.READ):
+        def hasRequestedAccess(self, doc, user=None, status=None):
+            if status is not None and not isinstance(status, list):
+                status = [status]
             if 'access' in doc:
-                if self._hasUserAccess(doc['access'].get('requests', []),
-                                        user['_id'], level):
-                    return True
-            return False
+                for userRequest in doc['access'].get('requests', []):
+                    if (userRequest['id'] == user['_id'] and
+                        (status is None or userRequest['status'] in status)):
+                        return True if status is not None else userRequest['status']
+                return False if status is not None else None
 
         Folder.setUserAccessRequest = setUserAccessRequest
-        Folder.hasAccessRequest = hasAccessRequest
-
-        Folder().exposeFields(AccessType.READ, "access")
+        Folder.hasRequestedAccess = hasRequestedAccess
 
         self.route("GET", (), self.list_datasets)
-        self.route("PUT", (":id", 'request'), self.request_access)
+        self.route("GET", ("requests",), self.list_requested_datasets)
+        self.route("GET", (":id", "media"), self.get_media)
+        self.route("POST", (":id", "share"), self.share_dataset)
+        self.route("PUT", (":id", 'requested'), self.has_requested)
+        self.route("PUT", (":id", 'request-access'), self.request_access)
+        self.route("PUT", (":id", 'grant-access'), self.grant_access)
 
     @access.user
     @autoDescribeRoute(
-        Description("List datasets in the system")
+        Description("List sharable datasets in the system")
         .pagingParams("created", defaultSortDir=SortDir.DESCENDING)
-        .param(
-            constants.PublishedMarker,
-            'Return only published datasets',
-            required=False,
-            default=False,
-            dataType='boolean',
-        )
-        .param(
-            constants.SharedMarker,
-            'Return only datasets shared with me',
-            required=False,
-            default=False,
-            dataType='boolean',
-        )
     )
     def list_datasets(
         self,
         limit: int,
         offset: int,
         sort,
-        published: bool,
-        shared: bool,
-        requested: bool,
     ):
-        return crud_dataset.list_datasets(
+        return crud_sharable_dataset.list_sharable_datasets(
             self.getCurrentUser(),
-            published,
-            shared,
-            requested,
             limit,
             offset,
             sort,
         )
-        
+
+    @access.user
+    @autoDescribeRoute(
+        Description("List datasets requests")
+        .pagingParams("created", defaultSortDir=SortDir.DESCENDING)
+    )
+    def list_requested_datasets(
+        self,
+        limit: int,
+        offset: int,
+        sort,
+    ):
+        return crud_sharable_dataset.list_requested_datasets(
+            self.getCurrentUser(),
+            limit,
+            offset,
+            sort,
+        )
+
+    @access.user
+    @autoDescribeRoute(
+        Description("Get dataset source media").modelParam(
+            "id", level=AccessType.READ, **DatasetModelParam
+        )
+    )
+    def get_media(self, folder):
+        return crud_sharable_dataset.get_media(folder, self.getCurrentUser()).dict(exclude_none=True)
+
+    @access.user
+    @autoDescribeRoute(
+        Description("Share/Unshare data to other users")
+        .modelParam(
+            "id", level=AccessType.READ, **DatasetModelParam
+        )
+        .param(
+            "share",
+            "Share data",
+            paramType="query",
+            dataType="boolean",
+        )
+    )
+    def share_dataset(self, folder, share):
+        return crud_sharable_dataset.share_dataset(folder, self.getCurrentUser(), share)
+
     @access.user
     @autoDescribeRoute(
         Description("Request access to dataset")
@@ -119,7 +147,59 @@ class SharableDatasetResource(Resource):
         self,
         folder,
     ):
-        return crud_dataset.request_access(
+        return crud_sharable_dataset.request_access(
             folder,
             self.getCurrentUser(),
         )
+
+    @access.user
+    @autoDescribeRoute(
+        Description("Grant access to dataset")
+        .modelParam(
+            "id",
+            level=AccessType.READ,
+            **DatasetModelParam,
+        )
+        .param(
+            "userId",
+            "User requesting access",
+            paramType="query",
+            dataType="string",
+        )
+        .param(
+            "grant",
+            "Grant access",
+            paramType="query",
+            dataType="boolean",
+        )
+    )
+    def grant_access(
+        self,
+        folder,
+        userId,
+        grant,
+    ):
+        request_user = User().findOne({'_id': ObjectId(userId)})
+        return crud_sharable_dataset.grant_access(
+            folder,
+            self.getCurrentUser(),
+            request_user,
+            grant,
+        )
+
+    @access.user
+    @autoDescribeRoute(
+        Description("Grant access to dataset")
+        .modelParam(
+            "id",
+            level=AccessType.READ,
+            **DatasetModelParam,
+        )
+    )
+    def has_requested(
+        self,
+        folder,
+    ):
+        user = self.getCurrentUser()
+        request_status = Folder().hasRequestedAccess(folder, user)
+        return {"id": user["_id"], "status": request_status}
