@@ -140,12 +140,12 @@ function requestAccess(folderId: string) {
   return girderRest.put(`/dive_sharable_dataset/${folderId}/request-access`);
 }
 
-function hasRequested(folderId: string) {
-  return girderRest.put(`/dive_sharable_dataset/${folderId}/requested`);
+function grantAccess(folderId: string, requestingUserLogin: string, folderToExchangeId?: string) {
+  return girderRest.put(`/dive_sharable_dataset/${folderId}/grant-access`, null, { params: { requestingUserLogin, folderToExchangeId } });
 }
 
-function grantAccess(folderId: string, userId: string, grant: boolean) {
-  return girderRest.put(`/dive_sharable_dataset/${folderId}/grant-access`, null, { params: { userId, grant } });
+function denyAccess(folderId: string, requestingUserLogin: string) {
+  return girderRest.put(`/dive_sharable_dataset/${folderId}/deny-access`, null, { params: { requestingUserLogin } });
 }
 
 function shareData(folderId: string, share: boolean) {
@@ -166,11 +166,11 @@ function validateUploadGroup(names: string[]) {
 
 export {
   clone,
+  denyAccess,
+  grantAccess,
   getDataset,
   getDatasetList,
   getDatasetMedia,
-  grantAccess,
-  hasRequested,
   importAnnotationFile,
   makeViameFolder,
   requestAccess,

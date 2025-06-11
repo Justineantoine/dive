@@ -105,44 +105,6 @@ def list_datasets(
     ]
 
 
-def list_shared_datasets(
-    user: types.GirderUserModel,
-    limit: int,
-    offset: int,
-    sortParams: Tuple[Tuple[str, int]],
-):
-    sort, sortDir = (sortParams or [['created', 1]])[0]
-    pipeline = [{'$match': get_shared_dataset_query(user)}]
-
-    pipeline += [
-        {
-            '$facet': {
-                'results': [
-                    {'$sort': {sort: sortDir}},
-                    {'$skip': offset},
-                    {'$limit': limit},
-                    {
-                        '$lookup': {
-                            'from': 'user',
-                            'localField': 'creatorId',
-                            'foreignField': '_id',
-                            'as': 'ownerLogin',
-                        },
-                    },
-                    {'$set': {'ownerLogin': {'$first': '$ownerLogin'}}},
-                    {'$set': {'ownerLogin': '$ownerLogin.login'}},
-                ],
-                'totalCount': [{'$count': 'count'}],
-            },
-        },
-    ]
-
-    response = next(Folder().collection.aggregate(pipeline))
-    total = response['totalCount'][0]['count'] if response['totalCount'] else 0
-    cherrypy.response.headers['Girder-Total-Count'] = total
-    return [Folder().filter(doc, additionalKeys=['ownerLogin']) for doc in response['results']]
-
-
 def get_dataset(
     dsFolder: types.GirderModel, user: types.GirderUserModel
 ) -> models.GirderMetadataStatic:
@@ -472,19 +434,7 @@ def get_dataset_query(
         return {'$and': [base_query, {'$or': optional_query_parts}]}
     return base_query
 
-def get_shared_dataset_query(
-    user: types.GirderUserModel
-):
-    return {
-        '$and': [
-            # Find datasets
-            {'meta.annotate': True},
-            # not owned by the current user
-            {'$nor': [{'creatorId': {'$eq': user['_id']}}, {'creatorId': {'$eq': None}}]},
-            # But marked as shared
-            {f'meta.{constants.SharableMarker}': True},
-        ]
-    }
+
 def validate_files(files: List[str]):
     """
     Given a collection of filenames, guess based on regular expressions

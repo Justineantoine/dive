@@ -105,6 +105,9 @@ export default defineComponent({
       });
       return results;
     },
+    currentRouteName() {
+      return this.$route.name;
+    },
   },
   methods: {
     async deleteSelection() {
@@ -156,6 +159,7 @@ export default defineComponent({
       >
         <v-col cols="3">
           <DataDetails
+            v-if="currentRouteName !== 'summary'"
             :value="selected.length ? selected : [location]"
           >
             <template #actions>

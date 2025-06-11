@@ -113,8 +113,9 @@ OriginalFPSStringMarker = "originalFpsString"
 ConfidenceFiltersMarker = "confidenceFilters"
 PreviewFrames = "previewFrames"
 SharableMarker = "sharable"
-OriginalDatasetName = "originalDatasetName"
-SharableMediaIdMarker = "sharableMediaId"
+OriginalMediaName = "originalMediaName"
+SharableMediaId = "sharableMediaId"
+OriginalMediaId = "originalMediaId"
 
 # Other constants
 TrainedPipelineCategory = "trained"

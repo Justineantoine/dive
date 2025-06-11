@@ -47,8 +47,8 @@ def send_access_request_email(event):
         email = User().findOne({"_id": dataset.get("creatorId")}).get("email")
         rendered = renderTemplate('access_request.mako', info)
         sendMail(f'You received a new access request!', rendered, [email])
-    except Exception:
-        logger.exception("Failed to send new user email")
+    except ConnectionRefusedError:
+        logger.exception("Failed to send access request email")
 
 
 def process_assetstore_import(event, meta: dict):

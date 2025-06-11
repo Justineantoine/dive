@@ -237,7 +237,7 @@ class MetadataMutable(BaseModel):
     fps: Optional[float]
     previewFrames: Optional[List[int]]
     sharable: Optional[bool]
-    originalDatasetName: Optional[str]
+    OriginalMediaName: Optional[str]
     sharableMediaId: Optional[PydanticObjectId]
 
     @staticmethod

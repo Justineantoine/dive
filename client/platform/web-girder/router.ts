@@ -10,6 +10,7 @@ import RouterPage from './views/RouterPage.vue';
 import AdminPage from './views/AdminPage.vue';
 import ViewerLoader from './views/ViewerLoader.vue';
 import ShareTabs from './views/ShareTabs.vue';
+import DataExchange from './views/DataExchange.vue';
 import DataShared from './views/DataShared.vue';
 import DataSharedRequests from './views/DataSharedRequests.vue';
 import DataBrowser from './views/DataBrowser.vue';
@@ -121,7 +122,7 @@ const router = new Router({
                   path: 'shared-with-me',
                   name: 'shared-with-me',
                   component: DataShared,
-                  props: (route) => ({ ...route.params, sharedWithMe: true }),
+                  props: (route) => ({ ...route.params, mode: 'shared-with-me' }),
                   beforeEnter,
                 },
                 {
@@ -135,6 +136,19 @@ const router = new Router({
                   name: 'requests',
                   component: DataSharedRequests,
                   beforeEnter,
+                },
+                {
+                  path: 'exchange',
+                  name: 'exchange',
+                  component: DataExchange,
+                  props: true,
+                  beforeEnter: (to, from, next) => {
+                    const { requestingUser, requestedDataset } = to.params;
+                    if (!requestingUser || !requestedDataset) {
+                      return next({ name: 'requests' });
+                    }
+                    return beforeEnter(to, from, next);
+                  },
                 },
               ],
             },

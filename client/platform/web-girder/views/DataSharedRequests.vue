@@ -4,15 +4,17 @@ import {
 } from 'vue';
 import type { DataOptions } from 'vuetify';
 import { mixins } from '@girder/components/src';
+import { useRouter } from 'vue-router/composables';
 import { clientSettings } from 'dive-common/store/settings';
 import { itemsPerPageOptions } from 'dive-common/constants';
-import { grantAccess, getRequestedFolders } from '../api';
+import { getRequestedFolders } from '../api';
 import { useStore, AccessRequest } from '../store/types';
 import eventBus from '../eventBus';
 
 export default defineComponent({
   name: 'DataSharedRequests',
   setup() {
+    const router = useRouter();
     const total = ref();
     const requestList = ref([] as AccessRequest[]);
     const tableOptions = reactive({
@@ -25,10 +27,10 @@ export default defineComponent({
     const locationStore = store.state.Location;
 
     const headers = [
-      { text: 'Dataset Name', value: 'name' },
+      { text: 'Dataset Name', value: 'meta.originalMediaName' },
       { text: 'Type', value: 'type' },
       { text: 'File Size', value: 'formattedSize' },
-      { text: 'Requested By', value: 'requestingUser' },
+      { text: 'Requested By', value: 'requestingUserLogin' },
     ];
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -57,9 +59,13 @@ export default defineComponent({
       updateOptions();
     }
 
-    function onClick(item: AccessRequest, grant: boolean) {
-      grantAccess(item._id, item.requestingUser._id, grant).then(() => {
-        eventBus.$emit('refresh-request-table');
+    function onExchange(item: AccessRequest) {
+      router.push({
+        name: 'exchange',
+        params: {
+          requestingUser: item.requestingUserLogin,
+          requestedDataset: item._id,
+        },
       });
     }
 
@@ -75,7 +81,7 @@ export default defineComponent({
     });
 
     return {
-      onClick,
+      onExchange,
       requestList,
       getters,
       updateOptions,
@@ -112,25 +118,16 @@ export default defineComponent({
         {{ item.name }}
       </div>
     </template>
-    <template #item.requestingUser="{ item }">
-      {{ item.requestingUser.login }}
+    <template #item.requestingUserLogin="{ item }">
+      {{ item.requestingUserLogin }}
       <v-btn
         class="ml-2"
         x-small
         color="primary"
         depressed
-        @click="onClick(item, true)"
+        @click="onExchange(item)"
       >
-        Accept
-      </v-btn>
-      <v-btn
-        class="ml-2"
-        x-small
-        color="error"
-        depressed
-        @click="onClick(item, false)"
-      >
-        Refuse
+        Exchange
       </v-btn>
     </template>
     <template #no-data>

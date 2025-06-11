@@ -10,7 +10,7 @@ import { clientSettings } from 'dive-common/store/settings';
 import { useGirderRest } from 'platform/web-girder/plugins/girder';
 import { shareData } from 'platform/web-girder/api';
 import {
-  useStore, LocationType, isGirderModel,
+  useStore, LocationType, isGirderModel, Access,
 } from '../store/types';
 import Upload from './Upload.vue';
 import eventBus from '../eventBus';
@@ -25,6 +25,7 @@ export default defineComponent({
   setup() {
     const girderRest = useGirderRest();
     const fileManager = ref();
+    const shareLoading = ref(false);
     const store = useStore();
     const uploading = ref(false);
     const uploaderDialog = ref(false);
@@ -52,47 +53,53 @@ export default defineComponent({
     }
 
     function canFolderBeShared(item: GirderModel) {
-      return isAnnotationFolder(item) && !item.public;
+      return isAnnotationFolder(item) && !(item.public || item.foreign_media_id || item.published);
     }
 
-    function isUserOwner(item: GirderModel) {
-      if (item._modelType === 'folder') {
-        return item.creatorId === girderRest.user._id || girderRest.user.admin;
-      }
-      if (item._modelType === 'user') {
-        return item._id === girderRest.user._id || girderRest.user.admin;
-      }
-      return girderRest.user.admin;
+    function hasUserAccess(item: GirderModel, requiredLevel: number) {
+      if (!item?.access || !girderRest.user) return false;
+
+      if (girderRest.user.admin) return true;
+
+      if (requiredLevel === 0 && item.public) return true;
+
+      const userGroups = girderRest.user.groups || [];
+      const userAccess = item.access.users?.find(
+        (u: Access) => (u.id === girderRest.user._id && u.level >= requiredLevel),
+      );
+      if (userAccess) return true;
+
+      const groupAccess = item.access.groups?.find(
+        (g: Access) => (userGroups.includes(g.id) && g.level >= requiredLevel),
+      );
+      if (groupAccess) return true;
+
+      return false;
     }
 
     function toggleShare(item: GirderModel) {
-      shareData(item._id, !item.meta.sharableMediaId).then(() => {
-        eventBus.$emit('refresh-data-browser');
-      });
+      shareLoading.value = true;
+      shareData(item._id, !item.sharableMediaId)
+        .then(() => {
+          eventBus.$emit('refresh-data-browser');
+        })
+        .finally(() => {
+          shareLoading.value = false;
+        });
     }
 
-    const shouldShowUpload = computed(() => (
+    const canAddNewFolder = computed(() => (
       locationStore.location
       && !getters['Location/locationIsViameFolder']
+      && !locationStore.selected.length
+      && isGirderModel(locationStore.location)
+      && hasUserAccess(locationStore.location, 1)
+    ));
+
+    const canUpload = computed(() => (
+      locationStore.location
+      && canAddNewFolder.value
       && getLocationType(locationStore.location) === 'folder'
-      && !locationStore.selected.length
-      && isGirderModel(locationStore.location)
-      && isUserOwner(locationStore.location)
-    ));
-
-    const shouldShowNewFolder = computed(() => (
-      locationStore.location
-      && !getters['Location/locationIsViameFolder']
-      && !locationStore.selected.length
-      && isGirderModel(locationStore.location)
-      && isUserOwner(locationStore.location)
-    ));
-
-    const shouldShowSelect = computed(() => (
-      locationStore.location
-      && !getters['Location/locationIsViameFolder']
-      && isGirderModel(locationStore.location)
-      && isUserOwner(locationStore.location)
     ));
 
     eventBus.$on('refresh-data-browser', handleNotification);
@@ -104,20 +111,20 @@ export default defineComponent({
       fileManager,
       locationStore,
       getters,
-      toggleShare,
-      shouldShowUpload,
-      shouldShowNewFolder,
-      shouldShowSelect,
+      canAddNewFolder,
+      canUpload,
+      shareLoading,
       uploaderDialog,
       uploading,
       clientSettings,
       itemsPerPageOptions,
       /* methods */
       isAnnotationFolder,
-      isUserOwner,
       canFolderBeShared,
       handleNotification,
+      hasUserAccess,
       setLocation,
+      toggleShare,
       updateUploading,
     };
   },
@@ -128,8 +135,8 @@ export default defineComponent({
   <DiveGirderBrowser
     ref="fileManager"
     v-model="locationStore.selected"
-    :selectable="shouldShowSelect"
-    :new-folder-enabled="shouldShowNewFolder"
+    :selectable="!getters['Location/locationIsViameFolder']"
+    :new-folder-enabled="canAddNewFolder"
     :location="locationStore.location"
     :items-per-page.sync="clientSettings.rowsPerPage"
     :items-per-page-options="itemsPerPageOptions"
@@ -137,7 +144,7 @@ export default defineComponent({
   >
     <template #headerwidget>
       <v-dialog
-        v-if="shouldShowUpload"
+        v-if="canUpload"
         v-model="uploaderDialog"
         max-width="800px"
         :persistent="uploading"
@@ -175,7 +182,7 @@ export default defineComponent({
         mdi-autorenew
       </v-icon>
       <v-btn
-        v-if="isAnnotationFolder(item) && (isUserOwner(item) || item.public)"
+        v-if="isAnnotationFolder(item) && hasUserAccess(item, 0)"
         class="ml-2"
         x-small
         color="primary"
@@ -185,16 +192,19 @@ export default defineComponent({
         Launch Annotator
       </v-btn>
       <v-btn
-        v-if="canFolderBeShared(item) && isUserOwner(item)"
+        v-if="canFolderBeShared(item) && hasUserAccess(item, 2)"
         class="ml-2"
         x-small
         color="primary"
         depressed
-        :rounded="!!item.meta.sharableMediaId"
-        :outlined="!!item.meta.sharableMediaId"
+        :icon="shareLoading"
+        :disabled="shareLoading"
+        :rounded="!shareLoading && !!item.sharableMediaId"
+        :outlined="!shareLoading && !!item.sharableMediaId"
+        :loading="shareLoading"
         @click.stop="toggleShare(item)"
       >
-        {{ !item.meta.sharableMediaId ? 'Share' : 'Unshare' }}
+        {{ !item.sharableMediaId ? 'Share' : 'Unshare' }}
       </v-btn>
       <v-chip
         v-if="(item.foreign_media_id)"

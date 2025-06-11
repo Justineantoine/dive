@@ -49,6 +49,12 @@ export interface RootState {
   User: UserState;
 }
 
+export interface Access {
+  id: string;
+  level: number;
+  flags?: string[];
+}
+
 export interface DatasetAccessRequest {
   id: string;
   status: string;

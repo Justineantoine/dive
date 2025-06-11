@@ -6,13 +6,10 @@
     width="200px"
     src="http://www.viametoolkit.org/wp-content/uploads/2016/08/viami_logo.png"
   >
-
   <h2>You have a pending access request</h2>
-
   <p>
-    ${user["firstName"]} ${user["lastName"]} (${user["login"]}) has requested access to ${dataset["meta"]["originalDatasetName"]}.
+    ${user["firstName"]} ${user["lastName"]} (${user["login"]}) has requested access to ${dataset["meta"]["originalMediaName"]}.
   </p>
-
 </div>
 
 <%include file="_footer.mako"/>

@@ -5,6 +5,7 @@ from girder import events, plugin
 from girder.constants import AccessType
 from girder.models.setting import Setting
 from girder.models.user import User
+from girder.models.folder import Folder
 from girder.plugin import getPlugin
 from girder.utility import mail_utils
 from girder.utility.model_importer import ModelImporter
@@ -43,7 +44,8 @@ class GirderPlugin(plugin.GirderPlugin):
         info["apiRoot"].folder.route("GET", (":id", "rootpath_or_relative"), get_root_path_or_relative)
         info["apiRoot"].folder.removeRoute("GET", ())
         info["apiRoot"].folder.route("GET", (), find)
-        User().exposeFields(AccessType.READ, constants.UserPrivateQueueEnabledMarker)
+        Folder().exposeFields(AccessType.READ, 'access')
+        User().exposeFields(AccessType.READ, [constants.UserPrivateQueueEnabledMarker, 'access'])
 
         # Expose Job dataset assocation
         Job().exposeFields(AccessType.READ, constants.JOBCONST_DATASET_ID)
