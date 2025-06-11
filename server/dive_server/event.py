@@ -40,6 +40,17 @@ def send_new_user_email(event):
         logger.exception("Failed to send new user email")
 
 
+def send_access_request_email(event):
+    try:
+        info = event.info
+        dataset = info.get("dataset")
+        email = User().findOne({"_id": dataset.get("creatorId")}).get("email")
+        rendered = renderTemplate('access_request.mako', info)
+        sendMail(f'You received a new access request!', rendered, [email])
+    except Exception:
+        logger.exception("Failed to send new user email")
+
+
 def process_assetstore_import(event, meta: dict):
     """
     Function for appending the appropriate metadata to no-copy import data

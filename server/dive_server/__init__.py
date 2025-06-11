@@ -5,7 +5,6 @@ from girder import events, plugin
 from girder.constants import AccessType
 from girder.models.setting import Setting
 from girder.models.user import User
-from girder.models.folder import Folder
 from girder.plugin import getPlugin
 from girder.utility import mail_utils
 from girder.utility.model_importer import ModelImporter
@@ -15,7 +14,7 @@ from dive_utils import constants
 
 from .client_webroot import ClientWebroot
 from .crud_annotation import GroupItem, RevisionLogItem, TrackItem
-from .event import DIVES3Imports, process_fs_import, process_s3_import, send_new_user_email
+from .event import DIVES3Imports, process_fs_import, process_s3_import, send_new_user_email, send_access_request_email
 from .views_annotation import AnnotationResource
 from .views_configuration import ConfigurationResource
 from .views_dataset import DatasetResource
@@ -85,6 +84,11 @@ class GirderPlugin(plugin.GirderPlugin):
             'model.user.save.created',
             'send_new_user_email',
             send_new_user_email,
+        )
+        events.bind(
+            'access_request',
+            'send_access_request_email',
+            send_access_request_email,
         )
 
         # Create dependency on worker

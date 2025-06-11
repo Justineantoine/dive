@@ -3,6 +3,7 @@ from numpy import linspace
 from typing import List, Tuple
 
 import cherrypy
+from girder import events
 from girder.constants import AccessType
 from girder.models.folder import Folder
 from girder.models.item import Item
@@ -192,6 +193,10 @@ def request_access(
     dsFolder: types.GirderModel, user: types.GirderUserModel
 ) -> str:
     crud.verify_dataset(dsFolder)
+    events.trigger('access_request', {
+        'user': user,
+        'dataset': dsFolder
+    })
     if dsFolder['creatorId'] == user['_id'] or user['admin']:
         return {
             'message': 'User already has access to this data',
