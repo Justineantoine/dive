@@ -1,16 +1,16 @@
 # ========================
 # == CLIENT BUILD STAGE ==
 # ========================
-# FROM node:18 as client-builder
-# WORKDIR /app
+FROM node:18 as client-builder
+WORKDIR /app
 
-# # Install dependencies
-# COPY client/package.json client/yarn.lock /app/
-# RUN yarn install --frozen-lockfile --network-timeout 300000
-# # Build
-# COPY .git/ /app/.git/
-# COPY client/ /app/
-# RUN yarn build:web
+# Install dependencies
+COPY client/package.json client/yarn.lock /app/
+RUN yarn install --frozen-lockfile --network-timeout 300000
+# Build
+COPY .git/ /app/.git/
+COPY client/ /app/
+RUN yarn build:web
 
 # ========================
 # == SERVER BUILD STAGE ==
@@ -38,9 +38,6 @@ COPY server/pyproject.toml server/poetry.lock /opt/dive/src/
 RUN poetry env use system
 RUN poetry config virtualenvs.create false
 # Install dependencies only
-RUN poetry update pyvips
-RUN poetry update pylibtiff
-RUN poetry lock
 RUN poetry install --no-root --extras "large-image"
 # Build girder client, including plugins like worker/jobs
 RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.5/install.sh | bash
@@ -73,8 +70,8 @@ ENV PATH="/opt/dive/local/venv/bin:$PATH"
 COPY --from=server-builder /opt/dive/local/venv /opt/dive/local/venv
 # Copy the source code of the editable module
 COPY --from=server-builder /opt/dive/src /opt/dive/src
-# # Copy the client code into the static source location
-# COPY --from=client-builder /app/dist/ /opt/dive/local/venv/share/girder/static/viame/
+# Copy the client code into the static source location
+COPY --from=client-builder /app/dist/ /opt/dive/local/venv/share/girder/static/viame/
 # Install startup scripts
 COPY docker/entrypoint_server.sh docker/server_setup.py /
 
