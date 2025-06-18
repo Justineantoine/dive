@@ -27,7 +27,16 @@ from dive_utils.constants import (
 )
 
 from . import crud_rpc
+from dive_utils import constants
 
+
+def delete_sharable_folder(event):
+    """
+    Function for deleting the sharable folder associated to the deleted folder if it exists
+    """
+    folder = event.info.get("document", {})
+    if folder.get(constants.SharableMediaId, None) is not None:
+        Folder().removeWithQuery({"_id": folder.get(constants.SharableMediaId)})
 
 def send_new_user_email(event):
     try:
@@ -49,6 +58,26 @@ def send_access_request_email(event):
         sendMail(f'You received a new access request!', rendered, [email])
     except ConnectionRefusedError:
         logger.exception("Failed to send access request email")
+
+
+def send_access_granted_email(event):
+    try:
+        info = event.info
+        email = info.get("exchange_dataset_owner").get("email")
+        rendered = renderTemplate('access_granted.mako', info)
+        sendMail(f'Your request has been approved!', rendered, [email])
+    except ConnectionRefusedError:
+        logger.exception("Failed to send access granted email")
+
+
+def send_access_denied_email(event):
+    try:
+        info = event.info
+        email = info.get("requesting_user").get("email")
+        rendered = renderTemplate('access_denied.mako', info)
+        sendMail(f'Your request has been denied', rendered, [email])
+    except ConnectionRefusedError:
+        logger.exception("Failed to send access denied email")
 
 
 def process_assetstore_import(event, meta: dict):

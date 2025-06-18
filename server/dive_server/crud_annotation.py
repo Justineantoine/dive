@@ -311,6 +311,10 @@ def save_annotations(
         )
         RevisionLogItem().create(log_entry)
 
+    if dsFolder.get(constants.SharableMediaId, None) is not None:
+        sharable_folder = Folder().findOne({"_id": dsFolder.get(constants.SharableMediaId)})
+        clone_annotations(dsFolder, sharable_folder, user)
+
     return {"updated": additions, "deleted": deletions}
 
 
