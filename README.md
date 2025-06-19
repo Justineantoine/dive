@@ -29,6 +29,25 @@ DIVE uses [Girder](https://girder.readthedocs.io/en/stable/) for data management
 * The client application is a standard [@vue/cli](https://cli.vuejs.org/) application.
 * The job runner is built on celery and [Girder Worker](https://girder-worker.readthedocs.io/en/latest/).  Command-line executables for VIAME and FFmpeg are built inside the worker docker image.
 
+## Build your own Dive with a process of data exchange
+
+``` bash
+# Clone this repository
+git clone git@github.com:Justineantoine/dive.git ./dive
+cd dive
+
+# Initiate and edit the .env file
+cp .env.default .env
+nano .env
+
+# Edit the client .env.production file
+nano client/.env.production
+
+# Build and run docker images
+docker-compose build
+docker-compose up -d
+```
+
 ## Example Data
 
 ### Input
