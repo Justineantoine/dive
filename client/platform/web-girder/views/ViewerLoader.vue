@@ -88,6 +88,10 @@ export default defineComponent({
       type: Array as PropType<string[]>,
       default: () => [],
     },
+    previewMode: {
+      type: Boolean,
+      default: false,
+    },
   },
 
   setup(props) {
@@ -234,6 +238,7 @@ export default defineComponent({
     :revision="revisionNum"
     :current-set="set"
     :read-only-mode="!!getters['Jobs/datasetRunningState'](id)"
+    :preview-mode="previewMode"
     :comparison-sets="comparisonSets"
     @large-image-warning="largeImageWarning()"
     @update:set="routeSet"
@@ -259,24 +264,26 @@ export default defineComponent({
         v-bind="{ buttonOptions, menuOptions, typeList }"
         :selected-dataset-ids="[id]"
         :running-pipelines="runningPipelines"
-        :read-only-mode="revisionNum !== undefined"
+        :read-only-mode="revisionNum !== undefined || previewMode"
       />
       <ImportAnnotations
         :button-options="buttonOptions"
         :menu-options="menuOptions"
-        :read-only-mode="!!getters['Jobs/datasetRunningState'](id) || revisionNum !== undefined"
+        :read-only-mode="!!getters['Jobs/datasetRunningState'](id) || revisionNum !== undefined || previewMode"
         :dataset-id="id"
         block-on-unsaved
       />
       <Export
         v-bind="{ buttonOptions, menuOptions }"
         :dataset-ids="[id]"
+        :read-only-mode="previewMode"
         block-on-unsaved
       />
       <Clone
         v-if="$store.state.Dataset.meta"
         v-bind="{ buttonOptions, menuOptions }"
         :dataset-id="id"
+        :read-only-mode="previewMode"
         :revision="revisionNum"
       />
     </template>

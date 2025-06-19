@@ -111,6 +111,12 @@ FPSMarker = "fps"
 OriginalFPSMarker = "originalFps"
 OriginalFPSStringMarker = "originalFpsString"
 ConfidenceFiltersMarker = "confidenceFilters"
+PreviewFrames = "previewFrames"
+SharableMarker = "sharable"
+OriginalMediaName = "originalMediaName"
+SharableMediaId = "sharableMediaId"
+OriginalMediaId = "originalMediaId"
+AnnotationMarker = "annotations"
 
 # Other constants
 TrainedPipelineCategory = "trained"

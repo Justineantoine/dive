@@ -126,8 +126,11 @@ interface DatasetMetaMutable {
   confidenceFilters?: Record<string, number>;
   attributes?: Readonly<Record<string, Attribute>>;
   attributeTrackFilters?: Readonly<Record<string, AttributeTrackFilter>>;
+  sharable?: Readonly<boolean>;
+  sharableMediaId?: Readonly<string>;
+  previewFrames?: Readonly<Array<number>>;
 }
-const DatasetMetaMutableKeys = ['attributes', 'confidenceFilters', 'customTypeStyling', 'customGroupStyling', 'attributeTrackFilters'];
+const DatasetMetaMutableKeys = ['attributes', 'confidenceFilters', 'customTypeStyling', 'customGroupStyling', 'attributeTrackFilters', 'sharableMediaId'];
 
 interface DatasetMeta extends DatasetMetaMutable {
   id: Readonly<string>;
@@ -159,7 +162,6 @@ interface Api {
 
   loadMetadata(datasetId: string): Promise<DatasetMeta>;
   loadDetections(datasetId: string, revision?: number, set?: string): Promise<AnnotationSchemaList>;
-
   saveDetections(datasetId: string, args: SaveDetectionsArgs): Promise<unknown>;
   saveMetadata(datasetId: string, metadata: DatasetMetaMutable): Promise<unknown>;
   saveAttributes(datasetId: string, args: SaveAttributeArgs): Promise<unknown>;

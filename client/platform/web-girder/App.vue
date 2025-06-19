@@ -38,7 +38,6 @@ export default defineComponent({
     async function loadMetadata(datasetId: string): Promise<GirderMetadata> {
       return store.dispatch('Dataset/load', datasetId);
     }
-
     store.dispatch('Location/setLocationFromRoute', route);
 
     provideApi({

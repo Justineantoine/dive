@@ -7,6 +7,10 @@ from dive_utils import types
 from girder.models.folder import Folder
 from girder.models.user import User
 from girder.constants import AccessType
+from girder.utility.model_importer import ModelImporter
+from girder.exceptions import RestException
+
+from dive_utils import constants
 
 def get_folders_shared_with_me_query(
     user: types.GirderUserModel,
@@ -148,3 +152,31 @@ def get_root_path_or_relative(
             break
 
     return list(reversed(final_path))
+
+
+def find(user, parentType, parentId, text, name, limit, offset, sort):
+    filters = {
+        "$or": [
+            { f"meta.{constants.SharableMarker}": { "$exists": False } },
+            { f"meta.{constants.SharableMarker}": False }
+        ]
+    }
+    if parentType and parentId:
+        parent = ModelImporter.model(parentType).load(
+            parentId, user=user, level=AccessType.READ, exc=True)
+
+        if text:
+            filters['$text'] = {
+                '$search': text
+            }
+        if name:
+            filters['name'] = name
+
+        return Folder().childFolders(
+            parentType=parentType, parent=parent, user=user,
+            offset=offset, limit=limit, sort=sort, filters=filters)
+    elif text:
+        return Folder().textSearch(
+            text, user=user, limit=limit, offset=offset, sort=sort, filters=filters)
+    else:
+        raise RestException('Invalid search mode.')

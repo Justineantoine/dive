@@ -47,6 +47,8 @@ def createSoftClone(
     # ensure confidence filter metadata exists
     if constants.ConfidenceFiltersMarker not in cloned_folder['meta']:
         cloned_folder['meta'][constants.ConfidenceFiltersMarker] = {'default': 0.1}
+    if constants.AnnotationMarker not in cloned_folder['meta']:
+        cloned_folder['meta'][constants.AnnotationMarker] = {'number': 0, 'species': {}}
     Folder().save(cloned_folder)
     crud.get_or_create_auxiliary_folder(cloned_folder, owner)
     crud_annotation.clone_annotations(source_folder, cloned_folder, owner, revision)
@@ -61,11 +63,10 @@ def list_datasets(
     offset: int,
     sortParams: Tuple[Tuple[str, int]],
 ):
-    """Enumerate all public and private data the user can access"""
     sort, sortDir = (sortParams or [['created', 1]])[0]
-    # based on https://stackoverflow.com/a/49483919
-    pipeline = [
-        {'$match': get_dataset_query(user, published, shared)},
+    pipeline = [{'$match': get_dataset_query(user, published, shared)}]
+
+    pipeline += [
         {
             '$facet': {
                 'results': [
@@ -87,10 +88,15 @@ def list_datasets(
             },
         },
     ]
+
     response = next(Folder().collection.aggregate(pipeline))
-    total = response['totalCount'][0]['count'] if len(response['results']) > 0 else 0
+    total = response['totalCount'][0]['count'] if response['totalCount'] else 0
     cherrypy.response.headers['Girder-Total-Count'] = total
-    return [Folder().filter(doc, additionalKeys=['ownerLogin']) for doc in response['results']]
+
+    return [
+        Folder().filter(doc, additionalKeys=['ownerLogin', 'access_request_user'])
+        for doc in response['results']
+    ]
 
 
 def get_dataset(
@@ -158,6 +164,7 @@ def get_media(
             )
             for image in crud.valid_images(dsFolder, user)
         ]
+
     elif source_type == constants.LargeImageType:
         imageData = [
             models.MediaResource(
@@ -215,8 +222,8 @@ def update_attributes(dsFolder: types.GirderModel, data: dict):
     for attribute in validated.upsert:
         attributes_dict[str(attribute.key)] = attribute.dict(exclude_none=True)
 
-    upserted_len = len(validated.delete)
-    deleted_len = len(validated.upsert)
+    upserted_len = len(validated.upsert)
+    deleted_len = len(validated.delete)
 
     if upserted_len or deleted_len:
         update_metadata(dsFolder, {'attributes': attributes_dict})

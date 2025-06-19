@@ -124,39 +124,37 @@ export default defineComponent({
     <template #activator="{ on: menuOn }">
       <v-tooltip bottom>
         <template #activator="{ on: tooltipOn }">
-          <v-btn
-            class="ma-0"
-            v-bind="buttonOptions"
-            :disabled="!datasetId || processing"
-            v-on="{ ...tooltipOn, ...menuOn }"
-          >
-            <div>
-              <v-icon>
-                {{ processing ? 'mdi-spin mdi-sync' : 'mdi-application-import' }}
-              </v-icon>
-              <span
-                v-show="!$vuetify.breakpoint.mdAndDown || buttonOptions.block"
-                class="pl-1"
-              >
-                Import
-              </span>
-            </div>
-          </v-btn>
+          <div v-on="tooltipOn">
+            <v-btn
+              class="ma-0"
+              v-bind="buttonOptions"
+              :disabled="!datasetId || processing || readOnlyMode"
+              v-on="{ ...tooltipOn, ...menuOn }"
+            >
+              <div>
+                <v-icon>
+                  {{ processing ? 'mdi-spin mdi-sync' : 'mdi-application-import' }}
+                </v-icon>
+                <span
+                  v-show="!$vuetify.breakpoint.mdAndDown || buttonOptions.block"
+                  class="pl-1"
+                >
+                  Import
+                </span>
+              </div>
+            </v-btn>
+          </div>
         </template>
-        <span> Import Annotation Data </span>
+        <span v-if="readOnlyMode">
+          Read only mode, cannot import annotation for this dataset.
+        </span>
+        <span v-else>
+          Import Annotation Data
+        </span>
       </v-tooltip>
     </template>
     <template>
-      <v-card v-if="readOnlyMode">
-        <v-card-title> Read only Mode</v-card-title>
-        <v-card-text>
-          This Dataset is in ReadOnly Mode.  You cannot import annotations for this dataset.
-        </v-card-text>
-      </v-card>
-      <v-card
-        v-else
-        outlined
-      >
+      <v-card outlined>
         <v-card-title>
           Import Formats
         </v-card-title>

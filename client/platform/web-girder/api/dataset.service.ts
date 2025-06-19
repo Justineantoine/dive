@@ -50,8 +50,9 @@ export interface DatasetSourceMedia {
   sourceVideo?: MediaResource;
 }
 
-function getDatasetMedia(folderId: string) {
-  return girderRest.get<DatasetSourceMedia>(`dive_dataset/${folderId}/media`);
+async function getDatasetMedia(folderId: string, metadata?: GirderMetadataStatic) {
+  const resource = metadata?.sharable ? 'dive_sharable_dataset' : 'dive_dataset';
+  return girderRest.get<DatasetSourceMedia>(`${resource}/${folderId}/media`);
 }
 
 function clone({
@@ -135,6 +136,22 @@ function saveMetadata(folderId: string, metadata: DatasetMetaMutable) {
   return girderRest.patch(`/dive_dataset/${folderId}`, metadata);
 }
 
+function requestAccess(folderId: string) {
+  return girderRest.put(`/dive_sharable_dataset/${folderId}/request-access`);
+}
+
+function grantAccess(folderId: string, requestingUserLogin: string, folderToExchangeId?: string) {
+  return girderRest.put(`/dive_sharable_dataset/${folderId}/grant-access`, null, { params: { requestingUserLogin, folderToExchangeId } });
+}
+
+function denyAccess(folderId: string, requestingUserLogin: string) {
+  return girderRest.put(`/dive_sharable_dataset/${folderId}/deny-access`, null, { params: { requestingUserLogin } });
+}
+
+function shareData(folderId: string, share: boolean) {
+  return girderRest.post(`/dive_sharable_dataset/${folderId}/share`, null, { params: { share } });
+}
+
 interface ValidationResponse {
   ok: boolean;
   type: 'video' | 'image-sequence';
@@ -149,13 +166,17 @@ function validateUploadGroup(names: string[]) {
 
 export {
   clone,
+  denyAccess,
+  grantAccess,
   getDataset,
   getDatasetList,
   getDatasetMedia,
   importAnnotationFile,
   makeViameFolder,
+  requestAccess,
   saveAttributes,
   saveAttributeTrackFilters,
   saveMetadata,
+  shareData,
   validateUploadGroup,
 };

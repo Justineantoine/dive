@@ -1,4 +1,5 @@
 import type { GirderModel } from '@girder/components/src';
+import { AccessRequest } from 'platform/web-girder/store/types';
 import girderRest from 'platform/web-girder/plugins/girder';
 
 function deleteResources(resources: Array<GirderModel>) {
@@ -60,10 +61,50 @@ async function getSharedWithMeFolders(
   return response;
 }
 
+async function getSharedFolders(
+  limit?: number,
+  offset?: number,
+  sort?: string,
+  sortdir?: number,
+) {
+  const response = await girderRest.get<GirderModel[]>('dive_sharable_dataset', {
+    params: {
+      limit,
+      offset,
+      sort,
+      sortdir,
+    },
+  });
+  response.data.forEach((element) => {
+    // eslint-disable-next-line no-param-reassign
+    element._modelType = 'folder';
+  });
+  return response;
+}
+
+async function getRequestedFolders(
+  limit?: number,
+  offset?: number,
+  sort?: string,
+  sortdir?: number,
+) {
+  const response = await girderRest.get<AccessRequest[]>('dive_sharable_dataset/requests', {
+    params: {
+      limit,
+      offset,
+      sort,
+      sortdir,
+    },
+  });
+  return response;
+}
+
 export {
   deleteResources,
   getItemsInFolder,
   getFolder,
   setUsePrivateQueue,
   getSharedWithMeFolders,
+  getSharedFolders,
+  getRequestedFolders,
 };

@@ -16,11 +16,11 @@ const datasetModule: Module<DatasetState, RootState> = {
   },
   actions: {
     async load({ commit, dispatch }, datasetId: string): Promise<GirderMetadata> {
-      const [folder, metaStatic, media] = await Promise.all([
+      const [folder, metaStatic] = await Promise.all([
         getFolder(datasetId),
         getDataset(datasetId),
-        getDatasetMedia(datasetId),
       ]);
+      const media = await getDatasetMedia(datasetId, metaStatic.data);
       const dsMeta = {
         ...metaStatic.data,
         ...media.data,
