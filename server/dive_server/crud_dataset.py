@@ -59,20 +59,12 @@ def list_datasets(
     user: types.GirderUserModel,
     published: bool,
     shared: bool,
-    requested: bool,
     limit: int,
     offset: int,
     sortParams: Tuple[Tuple[str, int]],
 ):
     sort, sortDir = (sortParams or [['created', 1]])[0]
-    pipeline = [{'$match': get_dataset_query(user, published, shared, requested)}]
-
-    if requested:
-        # Duplicate each dataset per requester
-        pipeline += [
-            {'$unwind': f'$access.request'},
-            {'$addFields': {'access_request_user': '$access.request'}}
-        ]
+    pipeline = [{'$match': get_dataset_query(user, published, shared)}]
 
     pipeline += [
         {
@@ -269,6 +261,7 @@ def update_attribute_track_filters(dsFolder: types.GirderModel, data: dict):
     if upserted_len or deleted_len:
         update_metadata(dsFolder, {'attributeTrackFilters': attributesfilters_dict})
 
+
 def export_datasets_zipstream(
     dsFolders: List[types.GirderModel],
     user: types.GirderUserModel,
@@ -389,7 +382,6 @@ def get_dataset_query(
     user: types.GirderUserModel,
     published: bool,
     shared: bool,
-    requested: bool=False,
     level=AccessType.READ,
 ):
     base_query = {
@@ -417,16 +409,6 @@ def get_dataset_query(
                         # Implicit public datasets should not be considered "shared"
                         'access.users': {'$elemMatch': {'id': user['_id']}}
                     },
-                ]
-            }
-        )
-    elif requested:
-        optional_query_parts.append(
-            {
-            '$and': 
-                [
-                    {'creatorId': user['_id']},
-                    {'access.request': {'$exists': True, '$not': {'$size': 0}}}
                 ]
             }
         )

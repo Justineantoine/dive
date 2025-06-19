@@ -235,10 +235,6 @@ class MetadataMutable(BaseModel):
     attributes: Optional[Dict[str, Attribute]]
     attributeTrackFilters: Optional[Dict[str, AttributeTrackFilter]]
     fps: Optional[float]
-    previewFrames: Optional[List[int]]
-    sharable: Optional[bool]
-    OriginalMediaName: Optional[str]
-    sharableMediaId: Optional[PydanticObjectId]
     annotations: Optional[Dict]
 
     @staticmethod
@@ -270,6 +266,9 @@ class GirderMetadataStatic(MetadataMutable):
     originalFps: Optional[Union[float, int]]
     ffprobe_info: Optional[Dict[str, Any]]
     foreign_media_id: Optional[str]
+    previewFrames: Optional[List[int]]
+    sharable: Optional[bool]
+    originalMediaName: Optional[str]
 
 
 class MediaResource(BaseModel):

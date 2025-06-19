@@ -9,6 +9,7 @@
   <h2>You have a pending access request</h2>
   <p>
     ${user["firstName"]} ${user["lastName"]} (${user["login"]}) has requested access to ${dataset["meta"]["originalMediaName"]}.
+    You can see and answer this request in the Shared Data > Pending Requests tab.
   </p>
 </div>
 

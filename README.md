@@ -44,8 +44,8 @@ nano .env
 nano client/.env.production
 
 # Build and run docker images
-docker-compose build
-docker-compose up -d
+docker compose build
+docker compose up -d
 ```
 
 ## Example Data
