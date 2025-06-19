@@ -9,6 +9,7 @@
   <h2>Access request granted</h2>
   <p>
     Your access request to ${dataset["meta"]["originalMediaName"]} has been approved by ${dataset_owner["login"]} in exchange of ${exchange_dataset["meta"]["originalMediaName"]}.
+    You can see this new dataset in the Shared Data > Shared With Me tab.
   </p>
 </div>
 

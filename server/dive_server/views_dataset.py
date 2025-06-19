@@ -154,13 +154,11 @@ class DatasetResource(Resource):
         sort,
         published: bool,
         shared: bool,
-        requested: bool,
     ):
         return crud_dataset.list_datasets(
             self.getCurrentUser(),
             published,
             shared,
-            requested,
             limit,
             offset,
             sort,

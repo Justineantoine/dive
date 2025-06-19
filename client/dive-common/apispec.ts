@@ -49,10 +49,6 @@ interface TrainingConfigs {
   default: string;
 }
 
-interface User {
-  id: string;
-}
-
 type Pipelines = Record<string, Category>;
 
 interface SaveDetectionsArgs {
@@ -218,7 +214,6 @@ export {
   SaveAttributeArgs,
   SaveAttributeTrackFilterArgs,
   TrainingConfigs,
-  User,
   MultiCamMedia,
   MediaImportResponse,
 };
